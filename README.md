@@ -1,4 +1,4 @@
-# [Nombre del Proyecto] — Desarrollo Seguro
+# Desarrollo Seguro
 
 Proyecto de la asignatura **Desarrollo Seguro**. Se parte de una aplicación con código vulnerable, se identifican sus vulnerabilidades, se corrigen y se despliega la versión corregida en AWS con evidencia de testing.
 
