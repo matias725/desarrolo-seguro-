@@ -2,7 +2,7 @@
 
 Proyecto de la asignatura **Desarrollo Seguro**. Se parte de una aplicación con código vulnerable, se identifican sus vulnerabilidades, se corrigen y se despliega la versión corregida en AWS con evidencia de testing.
 
-- **Integrantes:** Matías ([@matias725](https://github.com/matias725)), Joaquín Andrés Zambra Zúñiga ([@Joacooooooo](https://github.com/Joacooooooo))
+- **Integrantes:** Matías Zepeda ([@matias725](https://github.com/matias725)), Joaquín Andrés Zambra Zúñiga ([@Joacooooooo](https://github.com/Joacooooooo))
 - **Docente:** Jorge Cortés
 - **Fecha de entrega:** [completar]
 
@@ -178,5 +178,5 @@ Las capturas y resultados se encuentran en [`docs/evidencias/`](docs/evidencias/
 
 | Nombre | GitHub | Rol |
 |--------|--------|-----|
-| Matías [apellido] | [@matias725](https://github.com/matias725) | Owner |
+| Matías Zepeda | [@matias725](https://github.com/matias725) | Owner |
 | Joaquín Andrés Zambra Zúñiga | [@Joacooooooo](https://github.com/Joacooooooo) | Collaborator |
