@@ -1,0 +1,12 @@
+# Secretos y configuración local (VUL019)
+src/pnkSecurity/setup/config.local.php
+.env
+*.pem
+**/awscreds
+credentials
+
+# Artefactos locales
+__pycache__/
+*.pyc
+.DS_Store
+~$*.docx
