@@ -167,4 +167,4 @@ CREATE TABLE `usuarios` (
 # Data for table "usuarios"
 #
 
-INSERT INTO `usuarios` VALUES (1,'Administrador','admin@gmail.com','admin01','1'),(2,'Alondra','alondra@gmail.com','alondra01','1');
+INSERT INTO `usuarios` VALUES (1,'Administrador','admin@gmail.com','$2y$12$M46CstiJ393F602UoStMK.dcJZtFktvnqd4rWdPVfVEiGwDLWcuIW','1'),(2,'Alondra','alondra@gmail.com','$2y$12$XD81bjd3QkWexPisEMC/mOAlpemV8vIBXfNGBsPHo6oD8Ri50Ap6y','1');
