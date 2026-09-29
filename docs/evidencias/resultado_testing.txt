@@ -1,0 +1,23 @@
+
+### ORIGINAL (vulnerable): http://54.197.67.4:8080
+  [vulnerable (esperado) ] VUL-1  Login SQLi          -> SESIÓN ABIERTA sin credenciales
+  [vulnerable (esperado) ] VUL-2  SQLi en id          -> HTTP 200 (inyección aceptada)
+  [vulnerable (esperado) ] VUL-10 XSS + VUL-14 auth   -> HTTP 200, SCRIPT SIN ESCAPAR (XSS)
+
+### CORREGIDA: https://54-197-67-4.sslip.io
+  [PASA                  ] VUL-1  Login SQLi          -> sin sesión (bloqueado)
+  [PASA                  ] VUL-2  SQLi en id          -> HTTP 404 (rechazado)
+  [PASA                  ] VUL-10 XSS + VUL-14 auth   -> HTTP 403, script no reflejado
+
+RESULTADO: la versión corregida bloquea todos los ataques probados.
+
+----- Cabeceras de seguridad (version corregida) -----
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: strict-origin-when-cross-origin
+Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+Set-Cookie: PNKSESSID=0c57bakild9gk78ss410gdg99k; path=/; secure; HttpOnly; SameSite=Strict
