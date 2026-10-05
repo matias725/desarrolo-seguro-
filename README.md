@@ -71,6 +71,7 @@ git checkout mejoras
    ```bash
    mysql pnk_security < src/Script_BD/pnk_security.sql
    mysql pnk_security < src/Script_BD/migracion_seguridad.sql
+   mysql pnk_security < src/Script_BD/migracion_seguridad_2.sql
    ```
 3. Configurar credenciales (fuera del código, VUL019):
    ```bash
@@ -79,7 +80,16 @@ git checkout mejoras
    ```
 4. Abrir `http://localhost/pnkSecurity/index.php?id=1`.
 
-Usuarios de prueba: `admin@gmail.com` / `admin01` — `alondra@gmail.com` / `alondra01`.
+Usuarios de prueba: `admin@gmail.com` y `alondra@gmail.com`. Las claves no se
+publican (VUL023). En local, define la tuya generando un hash bcrypt:
+
+```bash
+php -r 'echo password_hash("TU_CLAVE", PASSWORD_BCRYPT, ["cost" => 12]), "\n";'
+mysql pnk_security -e "UPDATE usuarios SET password='<hash>' WHERE email='admin@gmail.com'"
+```
+
+En AWS las claves se generan al desplegar y solo root puede leerlas:
+`sudo cat /root/pnk-credenciales.txt`.
 
 ---
 
@@ -107,6 +117,16 @@ Cada corrección está comentada en el código con su `VULxxx` y agrupada por co
 | VUL-21 | Errores expuestos en pantalla | A05 | Baja | `display_errors=Off` + handler | ✅ |
 | VUL-22 | Faltan cabeceras y cookies seguras | A05 | Baja | CSP/HSTS/etc. + cookie segura | ✅ |
 
+**Hallazgos de la revisión de la versión corregida** (segunda auditoría):
+
+| ID | Vulnerabilidad | OWASP 2021 | Sev. | Corrección | Estado |
+|----|----------------|-----------|------|------------|--------|
+| VUL-23 | Credenciales de prueba publicadas y válidas en producción; secretos en log legible | A07 | Media-Alta | Claves aleatorias al desplegar, solo legibles por root; log 600 y sin trazas de secretos | ✅ |
+| VUL-24 | Bloqueo de cuentas ajenas (DoS) y reinicio del contador con un login exitoso | A07 | Media | Límite por IP y por IP+cuenta; solo se limpian los fallos de esa cuenta | ✅ |
+| VUL-25 | Componentes JS con CVE conocidos (jQuery 3.2.1, Bootstrap 4.1.3) | A06 | Baja | jQuery 3.7.1 y Bootstrap 4.6.2 | ✅ |
+| VUL-26 | Comentarios sin límite (spam / inundación) | A04 | Baja | Máx. 5 por usuario cada 10 min; se muestran los 50 más recientes | ✅ |
+| VUL-27 | Versión vulnerable expuesta indefinidamente en `:8080` | A05 | Baja | Se retira sola a las 2 horas (timer de systemd) | ✅ |
+
 ---
 
 ## 5. Despliegue en AWS (versión corregida)
@@ -123,6 +143,8 @@ python deploy/desplegar_aws.py --vulnerable --key vockey
 - **Servicio / región:** EC2 (Ubuntu 24.04), `us-east-1`
 - **Endurecimiento aplicado automáticamente:**
   - Security Group mínimo: 80/443 públicos; 22 y 8080 solo la IP del tester.
+  - La versión original en `:8080` se elimina sola a las 2 horas (VUL027).
+  - Claves de las cuentas de prueba aleatorias, en `/root/pnk-credenciales.txt` (VUL023).
   - Usuario de BD con privilegios mínimos y clave aleatoria (nada de `root`).
   - Credenciales como variables de entorno de Apache, fuera del webroot.
   - HTTPS obligatorio (Let's Encrypt), IMDSv2, disco EBS cifrado.
