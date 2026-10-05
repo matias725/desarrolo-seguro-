@@ -10,3 +10,6 @@ __pycache__/
 *.pyc
 .DS_Store
 ~$*.docx
+
+# Laboratorio local reproducible (tests/lab_local.sh)
+.lab/

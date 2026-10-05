@@ -1,0 +1,84 @@
+===========================================================================
+ EVIDENCIA DE TESTING LOCAL  -  pnkSecurity
+ Fecha: 2026-10-05 15:29
+ Original  (rama main,    vulnerable): http://127.0.0.1:8080
+ Corregida (rama mejoras, segura)    : http://127.0.0.1:8000
+===========================================================================
+
+### VUL001 - SQLi en login (bypass de autenticacion)
+  original : payload ' OR '1'='1' -- -  -> SESION ABIERTA sin credenciales
+  corregida: mismo payload               -> sin sesion (bloqueado)
+
+### VUL002-VUL005, VUL020 - SQLi en parametro id / validacion de entradas
+  original  index.php?id=0 UNION SELECT 1-- -  -> HTTP 200  (inyeccion aceptada)
+  corregida index.php?id=0 UNION SELECT 1-- -  -> HTTP 404  (rechazado)
+
+### VUL006 - SQLi en mostrar_carrito.php
+  original  ?id=1 OR 1=1     -> HTTP 200
+  corregida ?keyid=1 OR 1=1  -> HTTP 404   | ?keyid=1 -> HTTP 200
+
+### VUL009 - Almacenamiento de contrasenas
+  original  (texto plano):
+    admin@gmail.com  ->  admin01
+    alondra@gmail.com  ->  alondra01
+  corregida (hash bcrypt):
+    admin@gmail.com  ->  $2y$12$ODh076...  (60 chars)
+    alondra@gmail.com  ->  $2y$12$mk.wpA...  (60 chars)
+
+### VUL010 / VUL014 - XSS almacenado y autorizacion en servidor
+  corregida: POST a grcomentarios SIN sesion -> HTTP 403  (requiere login)
+  corregida: con sesion, <script> se guarda pero en el HTML aparece:
+      &lt;script&gt;alert(1)&lt;/script&gt;
+
+### VUL011 - CSRF + metodo en login (corregida)
+  POST sin token -> HTTP 403   |   GET -> HTTP 405
+
+### VUL012 - CSRF en comentarios (corregida, con sesion)
+  POST sin token -> HTTP 403
+
+### VUL013 / VUL007 / VUL016 - Carrito: CSRF, SQLi y logica de negocio (corregida)
+  op=1 SIN token CSRF                       -> HTTP 403
+  op=1 iditems=0 UNION SELECT... (con token)-> HTTP 400  (VUL007)
+  op=1 iditems=3 (item eliminado)           -> HTTP 404  (VUL016)
+  op=1 iditems=5 (item visible)             -> HTTP 200
+  op=9 (operacion invalida, VUL020)         -> HTTP 400
+
+### VUL015 - IDOR (id inexistente)
+  original  ?id=999 -> HTTP 200   |   corregida ?id=999 -> HTTP 404
+
+### VUL017 - Regeneracion del ID de sesion tras login (corregida)
+  ID antes: 52b73045b8ce0cbe30d55a8d37de6e1c
+  ID despues: 60a2f11b1f0dafd1015f64cf5d0dd188
+  -> el ID cambia (sin fijacion de sesion)
+
+### VUL018 / VUL024 - Bloqueo por fuerza bruta (corregida)
+  Tras 5 fallos, 6o intento con clave CORRECTA -> "Demasiados intentos fallidos. Intente nuevamente en 15 minutos."
+
+### VUL021 - Manejo de errores
+  original  ?id=1' -> Fatal error
+  corregida ?id=1' -> HTTP 404  (sin traza tecnica)
+
+### VUL022 - Cabeceras de seguridad y cookie (corregida)
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Set-Cookie: PNKSESSID=0e5d7d8d7fe3409e02d1426f7aa753d2; path=/; HttpOnly; SameSite=Strict
+  Cache-Control: no-store, no-cache, must-revalidate
+  (original: sin cabeceras de seguridad; cookie PHPSESSID sin HttpOnly/SameSite/Secure)
+
+### VUL025 - Versiones de componentes JS
+  original  : /*! jQuery v3.2.1 | (c) JS Foundatio  + Bootstrap 4.1.3
+  corregida : /*! jQuery v3.7.1 | (c) OpenJS Found  + Bootstrap v4.6.2 (https://getbootstrap.com/)
+  corregida GET /vendors/jquery/jquery-3.2.1.min.js -> HTTP 404  (ya no existe)
+
+### VUL026 - Limite de comentarios por usuario (corregida)
+  Se publican 6 comentarios -> 6o: "Ha publicado demasiados comentarios. Intente nuevamente en unos minutos."
+  Comentarios realmente guardados: 5  (maximo 5 por 10 min)
+
+===========================================================================
+ NOTA: VUL019 (setup.php 403), VUL023 (claves aleatorias, log 600) y VUL027
+ (retiro de :8080 a las 2h) dependen de Apache/systemd en AWS; el servidor PHP
+ embebido no procesa .htaccess. Se evidencian en el despliegue (resultado_testing.txt).
+===========================================================================
