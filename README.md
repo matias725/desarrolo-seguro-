@@ -79,7 +79,9 @@ git checkout mejoras
    ```
 4. Abrir `http://localhost/pnkSecurity/index.php?id=1`.
 
-Usuarios de prueba: `admin@gmail.com` / `admin01` — `alondra@gmail.com` / `alondra01`.
+Usuarios de prueba: `admin@gmail.com` y `alondra@gmail.com`. Las claves no se
+publican; define las tuyas en local generando un hash bcrypt (ver rama `mejoras`,
+VUL023). En AWS las claves se generan al desplegar y solo root puede leerlas.
 
 ---
 
