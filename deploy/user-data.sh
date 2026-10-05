@@ -6,6 +6,8 @@
 # Log: /var/log/pnk-deploy.log
 # ---------------------------------------------------------------------------
 set -euxo pipefail
+# El log queda solo para root: nunca debe ser legible por www-data (VUL023).
+install -m 600 /dev/null /var/log/pnk-deploy.log
 exec > /var/log/pnk-deploy.log 2>&1
 
 REPO="https://github.com/matias725/desarrolo-seguro-.git"
@@ -17,7 +19,7 @@ WEB=/var/www/pnk
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
 apt-get install -y apache2 php libapache2-mod-php php-mysql php-mbstring \
-                   mysql-server git certbot python3-certbot-apache unattended-upgrades
+                   mysql-server php-cli git certbot python3-certbot-apache unattended-upgrades
 
 # --- Código ----------------------------------------------------------------
 git clone --depth 1 -b "$RAMA" "$REPO" /opt/pnk
@@ -32,8 +34,24 @@ find "$WEB" -type f -exec chmod 640 {} \;
 mysql -e "CREATE DATABASE IF NOT EXISTS pnk_security CHARACTER SET utf8mb4 COLLATE utf8mb4_spanish_ci"
 sed '1s/^\xEF\xBB\xBF//; /^CREATE DATABASE/d' /opt/pnk/src/Script_BD/pnk_security.sql | mysql pnk_security
 mysql pnk_security < /opt/pnk/src/Script_BD/migracion_seguridad.sql
+mysql pnk_security < /opt/pnk/src/Script_BD/migracion_seguridad_2.sql
+
+# VUL023: las cuentas de laboratorio nunca llegan a producción con claves
+# conocidas. Se generan claves aleatorias que solo root puede leer.
+set +x   # no escribir secretos en el log
+CRED=/root/pnk-credenciales.txt
+install -m 600 /dev/null "$CRED"
+for EMAIL in admin@gmail.com alondra@gmail.com; do
+    CLAVE=$(openssl rand -base64 18 | tr -d '/+=')
+    HASH=$(CLAVE="$CLAVE" php -r 'echo password_hash(getenv("CLAVE"), PASSWORD_BCRYPT, ["cost" => 12]);')
+    mysql pnk_security -e "UPDATE usuarios SET password='${HASH}' WHERE email='${EMAIL}'"
+    echo "${EMAIL}  ${CLAVE}" >> "$CRED"
+done
+unset CLAVE HASH
+set -x
 
 # Usuario de aplicación con privilegios mínimos y clave aleatoria (VUL019).
+set +x   # no escribir secretos en el log
 DB_PASS=$(openssl rand -hex 24)
 mysql <<SQL
 CREATE USER IF NOT EXISTS 'pnk_app'@'localhost' IDENTIFIED BY '${DB_PASS}';
@@ -51,6 +69,8 @@ SetEnv PNK_DB_PASS ${DB_PASS}
 SetEnv PNK_DB_NAME pnk_security
 CONF
 chmod 600 /etc/apache2/pnk-secretos.conf
+unset DB_PASS
+set -x
 
 # --- Apache endurecido -------------------------------------------------------
 a2enmod headers ssl rewrite
@@ -96,12 +116,15 @@ if [ "$VULNERABLE" = "1" ]; then
     git clone --depth 1 -b main "$REPO" /opt/pnk-original
     mkdir -p /var/www/original
     cp -r /opt/pnk-original/src/pnkSecurity/. /var/www/original/
+    set +x
     VULN_PASS=$(openssl rand -hex 16)
     mysql -e "CREATE DATABASE IF NOT EXISTS pnk_original CHARACTER SET utf8mb4"
     sed '1s/^\xEF\xBB\xBF//; /^CREATE DATABASE/d' /opt/pnk-original/src/Script_BD/pnk_security.sql | mysql pnk_original
     mysql -e "CREATE USER IF NOT EXISTS 'pnk_original'@'localhost' IDENTIFIED BY '${VULN_PASS}'; GRANT ALL ON pnk_original.* TO 'pnk_original'@'localhost';"
     # Único cambio: apuntar a su propia BD (el original usa root sin clave).
     sed -i "s/mysqli_connect(\"localhost\",\"root\",\"\",\"pnk_security\")/mysqli_connect(\"localhost\",\"pnk_original\",\"${VULN_PASS}\",\"pnk_original\")/" /var/www/original/setup/setup.php
+    unset VULN_PASS
+    set -x
     chown -R www-data:www-data /var/www/original
     grep -q "Listen 8080" /etc/apache2/ports.conf || echo "Listen 8080" >> /etc/apache2/ports.conf
     cat > /etc/apache2/sites-available/pnk-original.conf <<'CONF'
@@ -116,6 +139,37 @@ if [ "$VULNERABLE" = "1" ]; then
 </VirtualHost>
 CONF
     a2ensite pnk-original
+
+    # VUL027: la versión vulnerable se elimina sola a las 2 horas, aunque
+    # nadie se acuerde de apagarla. Para retirarla antes:
+    #   sudo systemctl start pnk-retirar-original.service
+    cat > /usr/local/sbin/pnk-retirar-original <<'SH'
+#!/bin/bash
+a2dissite pnk-original || true
+sed -i '/^Listen 8080$/d' /etc/apache2/ports.conf
+rm -rf /var/www/original /opt/pnk-original
+mysql -e "DROP DATABASE IF EXISTS pnk_original; DROP USER IF EXISTS 'pnk_original'@'localhost';"
+systemctl reload apache2 || systemctl restart apache2
+SH
+    chmod 700 /usr/local/sbin/pnk-retirar-original
+    cat > /etc/systemd/system/pnk-retirar-original.service <<'UNIT'
+[Unit]
+Description=Retira la version vulnerable de pnkSecurity (:8080)
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/pnk-retirar-original
+UNIT
+    cat > /etc/systemd/system/pnk-retirar-original.timer <<'UNIT'
+[Unit]
+Description=Retira la version vulnerable de pnkSecurity 2 horas despues del arranque
+[Timer]
+OnBootSec=2h
+Unit=pnk-retirar-original.service
+[Install]
+WantedBy=timers.target
+UNIT
+    systemctl daemon-reload
+    systemctl enable --now pnk-retirar-original.timer
 fi
 
 systemctl restart apache2

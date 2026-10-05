@@ -61,7 +61,7 @@ def main():
     ap.add_argument("--rama", default="mejoras")
     ap.add_argument("--key", default="vockey", help="Key pair para SSH")
     ap.add_argument("--vulnerable", action="store_true",
-                    help="Publica también la versión original en :8080 (restringido a tu IP)")
+                    help="Publica también la versión original en :8080 (restringido a tu IP; se elimina sola a las 2 horas)")
     args = ap.parse_args()
 
     ec2 = boto3.client("ec2", region_name=args.region)
@@ -94,7 +94,8 @@ def main():
     print(f"IP elástica : {eip['PublicIp']}")
     print(f"URL         : https://{dominio}/index.php?id=1  (disponible en ~5-8 min)")
     if args.vulnerable:
-        print(f"Original    : http://{eip['PublicIp']}:8080/index.php?id=1  (solo desde {ip})")
+        print(f"Original    : http://{eip['PublicIp']}:8080/index.php?id=1  (solo desde {ip}, se retira sola a las 2 h)")
+    print("Claves de las cuentas de prueba: sudo cat /root/pnk-credenciales.txt (en la instancia)")
 
 
 if __name__ == "__main__":

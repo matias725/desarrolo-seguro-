@@ -4,7 +4,8 @@
 -- ---------------------------------------------------------------------------
 
 -- VUL009: contraseñas almacenadas como hash bcrypt (password_hash de PHP).
--- Las cuentas de prueba conservan sus claves de laboratorio (admin01 / alondra01).
+-- Estos hashes son solo para el laboratorio local. En el despliegue
+-- (deploy/user-data.sh) se reemplazan por claves aleatorias (VUL023).
 UPDATE `usuarios` SET `password` = '$2y$12$M46CstiJ393F602UoStMK.dcJZtFktvnqd4rWdPVfVEiGwDLWcuIW' WHERE `email` = 'admin@gmail.com';
 UPDATE `usuarios` SET `password` = '$2y$12$XD81bjd3QkWexPisEMC/mOAlpemV8vIBXfNGBsPHo6oD8Ri50Ap6y' WHERE `email` = 'alondra@gmail.com';
 ALTER TABLE `usuarios` ADD UNIQUE KEY `uq_usuarios_email` (`email`);
