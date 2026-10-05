@@ -428,10 +428,11 @@ function ruta_imagen($key, $foto)
           <br>
           <?php
             // VUL005: consulta preparada. VUL010: salida codificada con e().
-            $lista_comentarios = consulta_todas(
-                "SELECT usuario, comentario FROM comentarios WHERE id_restaurante = ? ORDER BY Id ASC",
+            // VUL026: solo los 50 comentarios más recientes (en orden cronológico).
+            $lista_comentarios = array_reverse(consulta_todas(
+                "SELECT usuario, comentario FROM comentarios WHERE id_restaurante = ? ORDER BY Id DESC LIMIT 50",
                 'i', $key
-            );
+            ));
             foreach($lista_comentarios as $datoscomentarios)
             {
           ?>
