@@ -10,6 +10,10 @@
  *   SameSite y Secure (cuando hay HTTPS).
  * - Helpers comunes: consultas preparadas, validación de enteros,
  *   codificación de salida y tokens anti-CSRF.
+ * - VUL028: HTTPS se detecta solo con la información del propio servidor;
+ *   X-Forwarded-Proto se acepta únicamente si PNK_TRUST_PROXY=1.
+ * - VUL029: CSP estricta (sin 'unsafe-inline') y aislamiento de origen.
+ * - VUL032: registro de eventos de seguridad en el log del servidor.
  */
 
 ini_set('display_errors', '0');
@@ -43,7 +47,7 @@ function responder_error($codigo, $mensaje)
         header('Content-Type: text/html; charset=UTF-8');
     }
     echo '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Error ' . (int) $codigo . '</title>'
-       . '<link rel="stylesheet" href="/vendors/bootstrap/bootstrap.min.css"></head><body><div class="container text-center" style="margin-top:60px">'
+       . '<link rel="stylesheet" href="/vendors/bootstrap/bootstrap.min.css"></head><body><div class="container text-center mt-5 pt-4">'
        . '<h3>' . e($mensaje) . '</h3><a href="/index.php?id=1">Volver</a></div></body></html>';
     exit;
 }
@@ -54,6 +58,19 @@ function responder_json($codigo, $datos)
     header('Content-Type: application/json; charset=UTF-8');
     echo json_encode($datos);
     exit;
+}
+
+/**
+ * VUL032: deja constancia de los eventos de seguridad (login fallido,
+ * bloqueo, CSRF rechazado, acceso denegado) para poder detectar ataques.
+ * Nunca se registran contraseñas ni tokens.
+ */
+function registrar_evento($tipo, $detalle = '')
+{
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '-';
+    $ruta = $_SERVER['SCRIPT_NAME'] ?? '-';
+    $limpio = preg_replace('/[\x00-\x1F\x7F]/', ' ', (string) $detalle);   // sin saltos de línea (log injection)
+    error_log(sprintf('[pnkSecurity][seguridad] %s ip=%s ruta=%s %s', $tipo, $ip, $ruta, mb_substr($limpio, 0, 200)));
 }
 
 set_exception_handler(function ($ex) {
@@ -141,13 +158,20 @@ function e($texto)
 // ---------------------------------------------------------------------------
 function es_https()
 {
-    return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-        || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+    if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
+        return true;
+    }
+    // VUL028: la cabecera la controla el cliente; solo se confía en ella
+    // cuando la app está detrás de un balanceador configurado explícitamente.
+    return config('PNK_TRUST_PROXY') === '1'
+        && ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
 }
 
 function enviar_cabeceras_seguridad()
 {
-    header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'");
+    header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'");
+    header('Cross-Origin-Opener-Policy: same-origin');
+    header('Cross-Origin-Resource-Policy: same-origin');
     header('X-Content-Type-Options: nosniff');
     header('X-Frame-Options: DENY');
     header('Referrer-Policy: strict-origin-when-cross-origin');
@@ -209,6 +233,7 @@ function validar_csrf()
 {
     $enviado = $_POST['csrf_token'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
     if (!is_string($enviado) || empty($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $enviado)) {
+        registrar_evento('csrf_rechazado');
         responder_error(403, 'Solicitud rechazada: token CSRF inválido o ausente.');
     }
 }

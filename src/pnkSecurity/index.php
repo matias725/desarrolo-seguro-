@@ -90,14 +90,14 @@ function ruta_imagen($key, $foto)
     <div class="container contendor">
       <div class="row">
         <div class="col-lg-4">
-          <div style="text-align: center;">
+          <div class="text-center">
             <div class="media">
               <img class="logosintituciones" src="img/logo.png" width="190px" alt="">
             </div>
           </div>
         </div>
         <div class="col-lg-4">
-          <div style="text-align: center;">
+          <div class="text-center">
             <div class="media">
               <?php
               if($datos_restorant['foto']!="")
@@ -231,7 +231,7 @@ function ruta_imagen($key, $foto)
               <h3 class="price-tag"><?php
               echo e(moneda_chilena($destacados['precio']));?></h3>
             </div>
-            <a class="button" href="#" id="<?php echo (int)$destacados['id'];?>" style="margin:0%">Seleccionar</a>
+            <a class="button m-0" href="#" id="<?php echo (int)$destacados['id'];?>">Seleccionar</a>
           </div>
         </div>
       <?php
@@ -469,9 +469,6 @@ function ruta_imagen($key, $foto)
   <script src="vendors/jquery/jquery-3.7.1.min.js"></script>
   <script src="vendors/bootstrap/bootstrap.bundle.min.js"></script>
   <script src="vendors/owl-carousel/owl.carousel.min.js"></script>
-  <script src="vendors/nice-select/jquery.nice-select.min.js"></script>
-  <script src="vendors/Magnific-Popup/jquery.magnific-popup.min.js"></script>
-  <script src="js/jquery.ajaxchimp.min.js"></script>
   <script src="js/main.js"></script>
   <script src="js/controladorajax.js"></script>
 </body>

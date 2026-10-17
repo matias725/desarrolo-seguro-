@@ -43,14 +43,14 @@ $csrf = token_csrf();
     <div class="container contendor">
       <div class="row">
         <div class="col-lg-4">
-          <div style="text-align: center;">
+          <div class="text-center">
             <div class="media">
               <img class="logosintituciones" src="img/logo.png" width="170px" alt="">
             </div><br><br>
           </div>  
         </div>
         <div class="col-lg-4">
-          <div style="text-align: center;">
+          <div class="text-center">
             
             <?php
               if($datos_restorant['foto']!="")
@@ -85,7 +85,7 @@ $csrf = token_csrf();
     <div class="container contendor">
       <div class="row">
         <div class="col-lg-12">
-         <h4 class="intro-title" style="text-align: center">Productos Agregados para Solicitar</h4>
+         <h4 class="intro-title text-center">Productos Agregados para Solicitar</h4>
         </div>
       </div>
     </div>
@@ -153,9 +153,6 @@ $csrf = token_csrf();
   <script src="vendors/jquery/jquery-3.7.1.min.js"></script>
   <script src="vendors/bootstrap/bootstrap.bundle.min.js"></script>
   <script src="vendors/owl-carousel/owl.carousel.min.js"></script>
-  <script src="vendors/nice-select/jquery.nice-select.min.js"></script>
-  <script src="vendors/Magnific-Popup/jquery.magnific-popup.min.js"></script>
-  <script src="js/jquery.ajaxchimp.min.js"></script>
   <script src="js/main.js"></script>
   <script src="js/controladorajax.js"></script>
 </body>

@@ -6,6 +6,7 @@
  * VUL008: INSERT con consulta preparada.
  * VUL010: el autor se toma de la sesión; el texto se guarda tal cual y se
  *         codifica al mostrarlo (index.php usa e()).
+ * VUL032: accesos denegados y límites alcanzados se registran en el log.
  * VUL026: máximo de comentarios por usuario en una ventana de tiempo, para
  *         evitar spam e inundación de la página.
  */
@@ -15,6 +16,7 @@ iniciar_sesion();
 exigir_post();
 
 if (!usuario_autenticado()) {
+    registrar_evento('acceso_denegado', 'comentario sin sesión');
     responder_error(403, 'Debe iniciar sesión para comentar.');
 }
 validar_csrf();
@@ -34,6 +36,7 @@ $recientes = consulta_fila(
     'i', $_SESSION['usuario_id']
 );
 if ((int) $recientes['total'] >= MAX_COMENTARIOS) {
+    registrar_evento('limite_comentarios', 'usuario_id=' . (int) $_SESSION['usuario_id']);
     $_SESSION['flash'] = 'Ha publicado demasiados comentarios. Intente nuevamente en unos minutos.';
     header('Location: index.php?id=' . $restaurante);
     exit;
