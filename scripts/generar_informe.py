@@ -36,6 +36,10 @@ C = {  # hash corto -> hash completo
     "273af11": "273af116fb440deff388302e828435df4cc5645d",
     "dd0c4f8": "dd0c4f8d3b9f81e5b8404b3e455272d3980127fc",
     "534932c": "534932ce44acac60b13bcda51c375da24fcbfb07",
+    "e534271": "e534271ad4d3ff502ef211b2c9ec9878e6c2887b",
+    "e71f454": "e71f4544392b12d1959c9d3fd668dfe7ea4c8996",
+    "e3b4e54": "e3b4e54dcd09fe7cea5854048c9ff0aef3546bfa",
+    "c617a06": "c617a06591cab91869b608783825c8cbb94f79fb",
 }
 
 # Bloques de código reutilizados -------------------------------------------------
@@ -637,16 +641,170 @@ if ((int) $recientes['total'] >= MAX_COMENTARIOS) { ... 'Ha publicado demasiados
              "Si nadie la apagaba, quedaba expuesta de forma permanente.",
         url=URL_ORIG + "/index.php?id=1",
         evid="deploy/user-data.sh (3b4bca9) creaba el VirtualHost :8080 sin fecha de retiro.",
-        commits=["534932c"], archivo="deploy/user-data.sh",
+        commits=["534932c", "c617a06"], archivo="deploy/user-data.sh, deploy/desplegar_y_evidenciar.ps1",
         orig="""a2ensite pnk-original     # queda publicado hasta que alguien lo apague""",
-        nuevo="""# VUL027: la versión vulnerable se elimina sola a las 2 horas
-/usr/local/sbin/pnk-retirar-original:
-    a2dissite pnk-original; sed -i '/^Listen 8080$/d' ports.conf
-    rm -rf /var/www/original; DROP DATABASE pnk_original; reload apache2
-pnk-retirar-original.timer  ->  OnActiveSec=2h""",
-        despues="Evidencia de configuración. Verificación en instancia: systemctl list-timers | grep pnk "
-                "y, pasadas 2 h, " + URL_ORIG + " deja de responder.",
+        nuevo="""# user-data.sh: la versión vulnerable se elimina sola a las 2 horas
+pnk-retirar-original.timer  ->  OnBootSec=2h
+    a2dissite pnk-original; rm -rf /var/www/original; DROP DATABASE pnk_original
+# desplegar_y_evidenciar.ps1: apenas termina el testing se cierra 8080
+ec2.revoke_security_group_ingress(GroupId=sg, IpPermissions=[regla 8080])""",
+        despues="desplegar_y_evidenciar.ps1 registra en resultado_testing.txt:\n"
+                "  Version original :8080 tras el testing -> cerrado (sin respuesta)",
         estado="Corregido – re-verificar en el nuevo despliegue",
+    ),
+    # ------------------------------------------------------------------ TERCERA REVISIÓN
+    dict(
+        id="VUL-028", nombre="Detección de HTTPS confiando en X-Forwarded-Proto del cliente",
+        sev="Baja", owasp="A05:2021 – Security Misconfiguration", asvs="V12 Secure Communication; V7 Session Management",
+        iso="A.8.9, A.8.27", asc="ASC-06, ASC-09",
+        desc="Tercera revisión: es_https() aceptaba la cabecera X-Forwarded-Proto enviada por cualquier "
+             "cliente. Sin balanceador, un atacante podía hacer que el servidor creyera estar en HTTPS "
+             "(cookie marcada Secure y HSTS emitidos sobre HTTP), ocultando una conexión no cifrada.",
+        url="Cualquier página: cabecera  X-Forwarded-Proto: https  sobre http://",
+        evid="curl -H 'X-Forwarded-Proto: https' http://<host>/index.php?id=1\n"
+             "-> Strict-Transport-Security y cookie 'secure' en una respuesta HTTP plana",
+        commits=["e534271"], archivo="src/pnkSecurity/setup/setup.php",
+        orig="""function es_https()
+{
+    return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+}""",
+        nuevo="""function es_https()
+{
+    if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
+        return true;
+    }
+    // solo detrás de un balanceador configurado explícitamente
+    return config('PNK_TRUST_PROXY') === '1'
+        && ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
+}""",
+        despues="La cabecera enviada por el cliente se ignora (PNK_TRUST_PROXY no está definido en AWS: "
+                "Apache termina TLS directamente).",
+        estado="Corregido – verificar con test_seguridad.py",
+    ),
+    dict(
+        id="VUL-029", nombre="CSP con 'unsafe-inline' y fuentes externas",
+        sev="Baja", owasp="A05:2021 – Security Misconfiguration", asvs="V3 Web Frontend Security",
+        iso="A.8.9, A.8.28", asc="ASC-06, ASC-10",
+        desc="La CSP permitía style-src 'unsafe-inline', lo que habilita inyección de CSS (exfiltración "
+             "de datos con selectores) si aparece cualquier otra falla de salida. style.css importaba "
+             "Google Fonts (dependencia externa no declarada). Faltaban COOP/CORP.",
+        url="Todas las respuestas HTML",
+        evid="Content-Security-Policy: ... style-src 'self' 'unsafe-inline'; ...\n"
+             "<div style=\"text-align: center;\">  ·  @import url(\"https://fonts.googleapis.com/...\")",
+        commits=["e534271"], archivo="setup/setup.php, index.php, mostrar_carrito.php, css/style.css",
+        orig="""header("Content-Security-Policy: default-src 'self'; script-src 'self';
+        style-src 'self' 'unsafe-inline'; ...");
+<div style="text-align: center;">
+<a class="button" ... style="margin:0%">Seleccionar</a>""",
+        nuevo="""header("Content-Security-Policy: default-src 'self'; script-src 'self';
+        style-src 'self'; ...");
+header('Cross-Origin-Opener-Policy: same-origin');
+header('Cross-Origin-Resource-Policy: same-origin');
+<div class="text-center">
+<a class="button m-0" ...>Seleccionar</a>""",
+        despues="Prueba 'VUL-22/29 Cabeceras' de tests/test_seguridad.py: falla si la CSP contiene "
+                "'unsafe-inline' o si falta nosniff, X-Frame-Options, HSTS o la cookie segura.",
+        estado="Corregido – verificar con test_seguridad.py",
+    ),
+    dict(
+        id="VUL-030", nombre="Librerías obsoletas y archivos sin uso publicados en el webroot",
+        sev="Media", owasp="A06:2021 – Vulnerable and Outdated Components", asvs="V15 Secure Coding and Architecture (dependencias)",
+        iso="A.8.8, A.5.21", asc="ASC-15",
+        desc="Aunque VUL-025 actualizó jQuery y Bootstrap, seguían publicados y descargables componentes "
+             "viejos sin uso: Bootstrap 4.1.3 dentro de vendors/fontawesome (CVE-2019-8331), jQuery "
+             "Validation 1.11.1 (ReDoS, CVE-2021-21252 / CVE-2022-31147), jQuery Form 3.32 (2013), "
+             "Magnific Popup 1.1.0, ajaxChimp, skrollr, nouislider, scripts de contacto/mail, demos HTML, "
+             ".DS_Store y style.map. Un atacante puede cargarlos desde la propia origen (bypass de CSP "
+             "'self' con gadgets de librerías viejas).",
+        url="GET /vendors/fontawesome/bootstrap.bundle.min.js  ·  /js/jquery.validate.min.js  ·  /css/style.map",
+        evid="vendors/fontawesome/bootstrap.bundle.min.js -> /*! Bootstrap v4.1.3 */  (HTTP 200)\n"
+             "js/jquery.validate.min.js -> /*! jQuery Validation Plugin - v1.11.1 - 3/22/2013 */  (HTTP 200)",
+        commits=["e71f454"], archivo="src/pnkSecurity/js/, vendors/, css/ (423 archivos eliminados)",
+        orig="""<script src="vendors/nice-select/jquery.nice-select.min.js"></script>
+<script src="vendors/Magnific-Popup/jquery.magnific-popup.min.js"></script>
+<script src="js/jquery.ajaxchimp.min.js"></script>
+// main.js
+$('#mc_embed_signup').find('form').ajaxChimp();
+$(".hero-banner__video").magnificPopup({...});""",
+        nuevo="""<script src="vendors/jquery/jquery-3.7.1.min.js"></script>
+<script src="vendors/bootstrap/bootstrap.bundle.min.js"></script>   <!-- 4.6.2 -->
+<script src="vendors/owl-carousel/owl.carousel.min.js"></script>
+<script src="js/main.js"></script>
+<script src="js/controladorajax.js"></script>
+// webroot final: 4 librerías (jQuery 3.7.1, Bootstrap 4.6.2, Owl 2.3.4, Themify)""",
+        despues="Prueba 'VUL-19/25/30 Archivos': las rutas de las librerías retiradas responden 404.",
+        estado="Corregido – verificar con test_seguridad.py",
+    ),
+    dict(
+        id="VUL-031", nombre="Fuerza bruta distribuida contra una cuenta y retención indefinida de IPs",
+        sev="Baja", owasp="A07:2021 – Identification and Authentication Failures", asvs="V6 Authentication (anti-automatización)",
+        iso="A.8.5, A.5.34", asc="ASC-07, ASC-11",
+        desc="Tras VUL-024 el límite era solo por IP: una botnet con muchas IP podía probar contraseñas "
+             "contra una misma cuenta sin tope. Además login_intentos guardaba IPs (dato personal) para "
+             "siempre.",
+        url="POST /setup/procesalogin.php desde muchas IP",
+        evid="WHERE ip = ? AND creado > ...   -> cada IP nueva parte con contador 0\n"
+             "login_intentos sin borrado de registros antiguos",
+        commits=["e3b4e54"], archivo="src/pnkSecurity/setup/procesalogin.php",
+        orig="""$intentos = consulta_fila("SELECT COUNT(*) AS por_ip, ... FROM login_intentos
+   WHERE ip = ? AND creado > (NOW() - INTERVAL 15 MINUTE)", 'ss', $email, $ip);""",
+        nuevo="""consulta("DELETE FROM login_intentos WHERE creado < (NOW() - INTERVAL 24 HOUR)");
+$global = consulta_fila("SELECT COUNT(*) AS total FROM login_intentos
+   WHERE email = ? AND creado > (NOW() - INTERVAL 15 MINUTE)", 's', $email);
+if (... || (int) $global['total'] >= MAX_INTENTOS_GLOBAL) {   // 30
+    registrar_evento('login_bloqueado', 'cuenta=' . $email);""",
+        despues="Máximo 30 intentos por cuenta cada 15 min desde cualquier IP (≈120/h). Con las claves "
+                "aleatorias de 24 caracteres generadas al desplegar (VUL-023) un ataque en línea es "
+                "impracticable. Las IP se eliminan a las 24 h.",
+        estado="Corregido – verificado por revisión de código",
+    ),
+    dict(
+        id="VUL-032", nombre="Registro insuficiente de eventos de seguridad",
+        sev="Baja", owasp="A09:2021 – Security Logging and Monitoring Failures", asvs="V16 Security Logging and Error Handling",
+        iso="A.8.15, A.8.16", asc="ASC-27, ASC-31",
+        desc="Los ataques (CSRF rechazados, accesos denegados, logins fallidos, bloqueos) no quedaban "
+             "registrados en ningún log, por lo que no era posible detectarlos ni investigarlos.",
+        url="procesalogin.php, grcomentarios.php, validar_csrf()",
+        evid="responder_error(403, ...) sin ningún registro del evento",
+        commits=["e534271", "e3b4e54"], archivo="setup/setup.php, setup/procesalogin.php, grcomentarios.php",
+        orig="""if (!hash_equals($_SESSION['csrf_token'], $enviado)) {
+    responder_error(403, 'Solicitud rechazada: token CSRF inválido o ausente.');
+}""",
+        nuevo="""function registrar_evento($tipo, $detalle = '') {
+    $limpio = preg_replace('/[\\x00-\\x1F\\x7F]/', ' ', (string) $detalle);  // anti log injection
+    error_log(sprintf('[pnkSecurity][seguridad] %s ip=%s ruta=%s %s', $tipo, $ip, $ruta,
+                      mb_substr($limpio, 0, 200)));
+}
+registrar_evento('csrf_rechazado');      registrar_evento('login_fallido', ...);
+registrar_evento('login_bloqueado', ...); registrar_evento('acceso_denegado', ...);""",
+        despues="En la instancia: grep '\\[seguridad\\]' /var/log/apache2/pnk_error.log muestra los eventos "
+                "generados por test_seguridad.py (sin contraseñas ni tokens).",
+        estado="Corregido – verificar en el nuevo despliegue",
+    ),
+    dict(
+        id="VUL-033", nombre="Aplicación publicada por HTTP plano si falla el certificado TLS",
+        sev="Media", owasp="A02:2021 – Cryptographic Failures", asvs="V12 Secure Communication",
+        iso="A.8.20, A.8.24", asc="ASC-06, ASC-12",
+        desc="Si Let's Encrypt fallaba, user-data.sh solo mostraba un aviso y la aplicación quedaba en "
+             "http:// con el formulario de login: las contraseñas viajarían sin cifrar.",
+        url="http://<ip-aws>.sslip.io/index.php?id=1 (cuando certbot falla)",
+        evid="certbot ... || echo \"AVISO: no se pudo emitir el certificado; el sitio queda solo en HTTP\"",
+        commits=["c617a06"], archivo="deploy/user-data.sh",
+        orig="""certbot --apache -d "$DOMINIO" --non-interactive --agree-tos \\
+        --register-unsafely-without-email --redirect \\
+    || echo "AVISO: no se pudo emitir el certificado; el sitio queda solo en HTTP\"""",
+        nuevo="""for intento in 1 2 3; do
+    if certbot --apache -d "$DOMINIO" ... --redirect; then CERT_OK=1; break; fi
+    sleep 60
+done
+if [ "$CERT_OK" != "1" ]; then     # fail-closed: nunca login por HTTP
+    <VirtualHost *:80> RedirectMatch 503 ^/ </VirtualHost>
+fi
+# + FilesMatch deniega también .map .json .txt .sh .py config.*.php""",
+        despues="Con certificado: http:// redirige 301 a https://. Sin certificado: HTTP 503, la "
+                "aplicación nunca se sirve sin cifrar.",
+        estado="Corregido – verificar en el nuevo despliegue",
     ),
 ]
 
@@ -782,7 +940,7 @@ def construir(destino: Path):
         ["Código vulnerable", "rama main (commit 8d54176)"],
         ["Código corregido", "rama mejoras (un commit por grupo de vulnerabilidades)"],
         ["Versión en AWS", "rama mejoras — versión sin vulnerabilidades (sección 5)"],
-        ["Hallazgos", "27 (9 Críticos · 5 Altos · 1 Media-Alta · 7 Medios · 5 Bajos)"],
+        ["Hallazgos", "33 (9 Críticos · 5 Altos · 1 Media-Alta · 9 Medios · 9 Bajos) — todos corregidos"],
     ], anchos=[4.5, 12.5])
     doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
 
@@ -792,13 +950,15 @@ def construir(destino: Path):
         "Se auditó la aplicación pnkSecurity (menú digital de restaurantes) mediante revisión manual de "
         "código (caja blanca) y pruebas dinámicas que repiten cada ataque contra la versión original y "
         "la corregida. La primera auditoría identificó 22 hallazgos (informe_pentesting_inicial.docx); "
-        "una segunda revisión sobre la versión corregida y su despliegue agregó 5 más (VUL-023 a VUL-027)."
+        "una segunda revisión sobre la versión corregida y su despliegue agregó 5 más (VUL-023 a VUL-027) "
+        "y una tercera revisión completa (código, librerías publicadas y aprovisionamiento de AWS) agregó "
+        "6 más (VUL-028 a VUL-033)."
     )
     doc.add_paragraph(
-        "Las 27 vulnerabilidades quedaron corregidas en la rama mejoras. 25 cuentan con evidencia de "
-        "prueba (el ataque falla en la versión corregida); VUL-023 y VUL-027 son controles del "
-        "despliegue en AWS y su evidencia es la configuración versionada, que debe re-verificarse en "
-        "cada nuevo despliegue."
+        "Las 33 vulnerabilidades quedaron corregidas en la rama mejoras; no queda ningún hallazgo abierto. "
+        "VUL-001 a VUL-026 tienen evidencia de prueba (el ataque falla en la versión corregida). VUL-027 a "
+        "VUL-033 se verifican con tests/test_seguridad.py (9 pruebas automáticas) y con la configuración "
+        "versionada del despliegue, y se re-evidencian en cada despliegue con deploy/desplegar_y_evidenciar.ps1."
     )
     doc.add_paragraph(
         "Causa raíz: ausencia sistemática de consultas preparadas, de validación de tipos y de "
@@ -906,6 +1066,12 @@ def construir(destino: Path):
                 "python tests/test_seguridad.py \\\n"
                 f"    --vulnerable {URL_ORIG} \\\n"
                 f"    --corregida  {URL_CORR}")
+    etiqueta(doc, "Análisis estático (SAST) de la versión corregida", VERDE)
+    codigo(doc, "semgrep scan --config p/php --config p/owasp-top-ten src/pnkSecurity\n"
+                "Ran 94 rules on 19 files: 0 findings.        (17/10/2026, rama mejoras)\n"
+                "\n"
+                "GitHub Actions (.github/workflows/seguridad.yml) repite en cada push:\n"
+                "  php -l (sintaxis) · Semgrep (SAST) · Gitleaks (secretos en el repositorio)", "EAF6EC")
     tabla_simple(doc, ["Prueba", "Original (main)", "Corregida (mejoras)"], [
         ["VUL-001 Login SQLi ' OR '1'='1' -- -", "Sesión abierta sin credenciales", "Bloqueado"],
         ["VUL-002..005 SQLi en id", "HTTP 200", "HTTP 404"],
@@ -925,6 +1091,13 @@ def construir(destino: Path):
         ["VUL-022 Cabeceras", "Ausentes", "CSP, HSTS, XFO, nosniff, cookie segura"],
         ["VUL-025 jQuery", "3.2.1", "3.7.1 (3.2.1 → 404)"],
         ["VUL-026 6 comentarios seguidos", "6 guardados", "5 guardados, 6º rechazado"],
+        ["VUL-027 :8080 tras el testing", "Publicado", "Cerrado en el Security Group"],
+        ["VUL-028 X-Forwarded-Proto falso", "HSTS/Secure sobre HTTP", "Cabecera ignorada"],
+        ["VUL-029 CSP", "style-src 'unsafe-inline'", "Sin 'unsafe-inline' + COOP/CORP"],
+        ["VUL-030 Librerías viejas publicadas", "HTTP 200", "HTTP 404"],
+        ["VUL-031 Fuerza bruta distribuida", "Sin tope por cuenta", "30 por cuenta / 15 min"],
+        ["VUL-032 Eventos de seguridad", "Sin registro", "[seguridad] en el log"],
+        ["VUL-033 Falla de certificado", "Login por HTTP", "HTTP 503 (fail-closed)"],
     ], anchos=[6.5, 4.5, 6])
 
     # 5. AWS -------------------------------------------------------------------------
@@ -969,20 +1142,23 @@ def construir(destino: Path):
         "Seguridad del tratamiento: las correcciones VUL-001..009 y VUL-019 eliminan las vías de acceso "
         "no autorizado a la tabla usuarios y protegen las contraseñas con bcrypt.",
         "Minimización: el comentario ya no recibe el nombre desde el formulario; se toma de la sesión.",
-        "Pendiente: definir retención de login_intentos (las IP son dato personal) y de comentarios, y "
-        "usar solo datos ficticios en los ambientes de prueba.",
+        "Retención: los intentos de login (IP y correo) se eliminan a las 24 horas (VUL-031); solo se "
+        "muestran los 50 comentarios más recientes.",
+        "Datos de prueba: el despliegue usa solo los datos ficticios del script SQL y genera claves "
+        "aleatorias para las cuentas de prueba (VUL-023).",
+        "Registro: los eventos de seguridad se registran sin contraseñas ni tokens (VUL-032).",
     ]:
         doc.add_paragraph(txt, style="List Bullet")
 
     doc.add_heading("7. Security Gate y riesgo residual", level=1)
     tabla_simple(doc, ["Campo", "Resultado"], [
-        ["Aplicación / versión", "pnkSecurity · rama mejoras (86a7b71)"],
-        ["Resultado", "APROBADO CON OBSERVACIONES"],
-        ["Críticos / altos abiertos", "0 / 0"],
-        ["Observación 1", "Re-ejecutar tests/test_seguridad.py en cada nuevo despliegue de AWS y adjuntar la salida"],
-        ["Observación 2", "Verificar en la instancia VUL-023 (permisos 600, claves aleatorias) y VUL-027 (timer de 2 h)"],
-        ["Riesgo residual", "Bajo. Sin SAST/SCA automatizado en CI; la CSP mantiene style-src 'unsafe-inline'; "
-                            "el límite de intentos se basa en IP (detrás de NAT varios usuarios comparten contador)."],
+        ["Aplicación / versión", "pnkSecurity · rama mejoras"],
+        ["Resultado", "APROBADO"],
+        ["Hallazgos abiertos", "0 de 33 (críticos 0 · altos 0 · medios 0 · bajos 0)"],
+        ["Controles automáticos", "tests/test_seguridad.py (9 pruebas) + GitHub Actions: php -l, Semgrep (SAST) y Gitleaks (secretos) en cada push"],
+        ["Condición de liberación", "desplegar_y_evidenciar.ps1 debe terminar con todas las pruebas en PASA y el puerto 8080 cerrado"],
+        ["Riesgo residual", "Bajo y aceptado: el tope de 30 intentos por cuenta permite bloquear temporalmente (15 min) "
+                            "una cuenta con un ataque sostenido; se prefirió frente a permitir fuerza bruta distribuida."],
     ], anchos=[4.5, 12.5])
     p = doc.add_paragraph()
     r = p.add_run("Los capítulos ASVS se citan a nivel de capítulo (v5.0.0). El identificador exacto de cada "

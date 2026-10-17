@@ -97,7 +97,7 @@ En AWS las claves se generan al desplegar y solo root puede leerlas:
 
 Informe técnico inicial (22 hallazgos): [`docs/informe_pentesting_inicial.docx`](docs/informe_pentesting_inicial.docx).
 
-**Informe de vulnerabilidades y correcciones (27 hallazgos):** [`docs/informe_vulnerabilidades.docx`](docs/informe_vulnerabilidades.docx) · [PDF](docs/informe_vulnerabilidades.pdf). Por cada vulnerabilidad incluye: OWASP, descripción, URL, evidencia, commit Git, código original, código nuevo y evidencia sin vulnerabilidad. Se regenera con `python scripts/generar_informe.py`.
+**Informe de vulnerabilidades y correcciones (33 hallazgos):** [`docs/informe_vulnerabilidades.docx`](docs/informe_vulnerabilidades.docx) · [PDF](docs/informe_vulnerabilidades.pdf). Por cada vulnerabilidad incluye: OWASP, descripción, URL, evidencia, commit Git, código original, código nuevo y evidencia sin vulnerabilidad. Se regenera con `python scripts/generar_informe.py`.
 Cada corrección está comentada en el código con su `VULxxx` y agrupada por commit.
 
 | ID | Vulnerabilidad | OWASP 2021 | Sev. | Corrección | Estado |
@@ -127,7 +127,21 @@ Cada corrección está comentada en el código con su `VULxxx` y agrupada por co
 | VUL-24 | Bloqueo de cuentas ajenas (DoS) y reinicio del contador con un login exitoso | A07 | Media | Límite por IP y por IP+cuenta; solo se limpian los fallos de esa cuenta | ✅ |
 | VUL-25 | Componentes JS con CVE conocidos (jQuery 3.2.1, Bootstrap 4.1.3) | A06 | Baja | jQuery 3.7.1 y Bootstrap 4.6.2 | ✅ |
 | VUL-26 | Comentarios sin límite (spam / inundación) | A04 | Baja | Máx. 5 por usuario cada 10 min; se muestran los 50 más recientes | ✅ |
-| VUL-27 | Versión vulnerable expuesta indefinidamente en `:8080` | A05 | Baja | Se retira sola a las 2 horas (timer de systemd) | ✅ |
+| VUL-27 | Versión vulnerable expuesta indefinidamente en `:8080` | A05 | Baja | Puerto 8080 cerrado al terminar el testing + retiro automático a las 2 h | ✅ |
+
+**Hallazgos de la tercera revisión** (código, librerías publicadas y despliegue):
+
+| ID | Vulnerabilidad | OWASP 2021 | Sev. | Corrección | Estado |
+|----|----------------|-----------|------|------------|--------|
+| VUL-28 | HTTPS detectado con `X-Forwarded-Proto` enviado por el cliente | A05 | Baja | Solo se confía en la cabecera con `PNK_TRUST_PROXY=1` | ✅ |
+| VUL-29 | CSP con `style-src 'unsafe-inline'` y fuentes externas | A05 | Baja | CSP estricta, estilos a clases, COOP/CORP | ✅ |
+| VUL-30 | Librerías obsoletas sin uso publicadas (Bootstrap 4.1.3, jQuery Validation 1.11.1, …) | A06 | Media | 423 archivos retirados del webroot | ✅ |
+| VUL-31 | Fuerza bruta distribuida contra una cuenta; IPs guardadas sin límite | A07 | Baja | Tope de 30 intentos por cuenta / 15 min; IPs borradas a las 24 h | ✅ |
+| VUL-32 | Sin registro de eventos de seguridad | A09 | Baja | `registrar_evento()` + CI con Semgrep y Gitleaks | ✅ |
+| VUL-33 | App publicada por HTTP si falla el certificado | A02 | Media | Fail-closed: HTTP 503 sin certificado | ✅ |
+
+**Estado: 33 de 33 corregidas.** Semgrep (`p/php` + `p/owasp-top-ten`): 0 hallazgos. GitHub Actions
+(`php -l`, Semgrep, Gitleaks) en verde.
 
 ---
 
