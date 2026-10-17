@@ -1,0 +1,33 @@
+# Controles automáticos de seguridad en cada push / PR (ASC-18 SAST, ASC-13 secretos).
+name: seguridad
+
+on:
+  push:
+    branches: [main, mejoras]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  php-lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sintaxis PHP
+        run: find src -name '*.php' -print0 | xargs -0 -n1 php -l
+
+  sast:
+    runs-on: ubuntu-24.04
+    container: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+      - name: Semgrep (PHP + OWASP Top 10)
+        run: semgrep scan --config p/php --config p/owasp-top-ten --error src/pnkSecurity
+
+  secretos:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Gitleaks (archivos de la rama)
+        run: docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.18.4 detect --no-git --source /repo --redact -v

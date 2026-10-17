@@ -56,7 +56,7 @@ $csrf = token_csrf();
               if($datos_restorant['foto']!="")
               {  
                 ?>
-                  <img class="logosintituciones" src="imagenes/cod<?php echo $key;?>/<?php echo e(rawurlencode(basename($datos_restorant['foto'])));?>" width="170px" alt="">
+                  <img class="logosintituciones" src="imagenes/cod<?php echo e($key);?>/<?php echo e(rawurlencode(basename($datos_restorant['foto'])));?>" width="170px" alt="">
               <?php
               }else{
                 ?>
@@ -70,7 +70,7 @@ $csrf = token_csrf();
         <div class="col-lg-4">
           <div class="carro">
             <div class="media float-right">
-              <a class="volver" href="index.php?id=<?php echo $key;?>">
+              <a class="volver" href="index.php?id=<?php echo e($key);?>">
               Volver a la Carta
               </a>&nbsp;&nbsp;
               <a class="limpiar" href="#">
