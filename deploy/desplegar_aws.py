@@ -69,8 +69,14 @@ def main():
 
     ip = mi_ip()
     sg = security_group(ec2, ip)
-    eip = ec2.allocate_address(Domain="vpc", TagSpecifications=[{
-        "ResourceType": "elastic-ip", "Tags": [{"Key": "Name", "Value": NOMBRE}]}])
+    # Se reutiliza la IP elástica del despliegue anterior para conservar la URL.
+    previas = ec2.describe_addresses(Filters=[{"Name": "tag:Name", "Values": [NOMBRE]}])["Addresses"]
+    libres = [a for a in previas if "AssociationId" not in a]
+    if libres:
+        eip = libres[0]
+    else:
+        eip = ec2.allocate_address(Domain="vpc", TagSpecifications=[{
+            "ResourceType": "elastic-ip", "Tags": [{"Key": "Name", "Value": NOMBRE}]}])
     dominio = eip["PublicIp"].replace(".", "-") + ".sslip.io"
 
     user_data = (pathlib.Path(__file__).with_name("user-data.sh").read_text(encoding="utf-8")

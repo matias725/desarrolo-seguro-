@@ -37,7 +37,9 @@ if ($a -ne 200) { throw "La versión corregida no respondió en 15 min. Revisar 
 $fecha = Get-Date -Format "yyyy-MM-dd HH:mm"
 $evid = "docs/evidencias/resultado_testing.txt"
 "Fecha: $fecha`nOriginal: $orig`nCorregida: $corr" | Out-File $evid -Encoding utf8
-py tests/test_seguridad.py --vulnerable $orig --corregida $corr | Tee-Object -FilePath $evid -Append -Encoding utf8
+$pruebas = py tests/test_seguridad.py --vulnerable $orig --corregida $corr   # (Tee-Object de PS 5.1 no admite -Encoding)
+$pruebas
+$pruebas | Out-File $evid -Append -Encoding utf8
 "`n----- Cabeceras de seguridad (versión corregida) -----" | Out-File $evid -Append -Encoding utf8
 (Invoke-WebRequest "$corr/index.php?id=1" -UseBasicParsing).RawContent.Split("`n") |
     Select-String '^(Content-Security|Strict-Transport|X-Frame|X-Content-Type|Referrer-Policy|Set-Cookie)' |
@@ -48,7 +50,9 @@ py tests/test_seguridad.py --vulnerable $orig --corregida $corr | Tee-Object -Fi
 # (además se borra sola de la instancia a las 2 h).
 py -c "import boto3; ec2=boto3.client('ec2',region_name='us-east-1'); sg=ec2.describe_security_groups(Filters=[{'Name':'group-name','Values':['pnk-sg']}])['SecurityGroups'][0]; [ec2.revoke_security_group_ingress(GroupId=sg['GroupId'], IpPermissions=[p]) for p in sg['IpPermissions'] if p.get('FromPort')==8080]; print('Puerto 8080 cerrado en pnk-sg')"
 $cerrado = try { Invoke-WebRequest "$orig/index.php?id=1" -UseBasicParsing -TimeoutSec 10 | Out-Null; "ABIERTO" } catch { "cerrado (sin respuesta)" }
-"Version original :8080 tras el testing -> $cerrado" | Tee-Object -FilePath $evid -Append -Encoding utf8
+$linea = "Version original :8080 tras el testing -> $cerrado"
+$linea
+$linea | Out-File $evid -Append -Encoding utf8
 
 # 4. Informe con las URLs reales (+ PDF si Word está instalado)
 py scripts/generar_informe.py --ip $ip

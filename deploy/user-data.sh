@@ -95,8 +95,13 @@ cat > /etc/apache2/sites-available/pnk.conf <<CONF
             Require all denied
         </FilesMatch>
     </Directory>
+    # VUL034: PHP tambien envia estas cabeceras; se quita su copia y Apache
+    # deja una sola (incluidas las respuestas de error).
+    Header unset X-Content-Type-Options
     Header always set X-Content-Type-Options "nosniff"
+    Header unset X-Frame-Options
     Header always set X-Frame-Options "DENY"
+    Header unset Referrer-Policy
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
     RedirectMatch 302 ^/$ /index.php?id=1
     ErrorLog \${APACHE_LOG_DIR}/pnk_error.log
