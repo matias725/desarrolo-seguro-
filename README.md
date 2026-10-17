@@ -140,7 +140,7 @@ Cada corrección está comentada en el código con su `VULxxx` y agrupada por co
 | VUL-32 | Sin registro de eventos de seguridad | A09 | Baja | `registrar_evento()` + CI con Semgrep y Gitleaks | ✅ |
 | VUL-33 | App publicada por HTTP si falla el certificado | A02 | Media | Fail-closed: HTTP 503 sin certificado | ✅ |
 
-**Estado: 33 de 33 corregidas.** Semgrep (`p/php` + `p/owasp-top-ten`): 0 hallazgos. GitHub Actions
+**Estado: 34 de 34 corregidas** (VUL-34: cabeceras duplicadas, detectada y corregida al probar en AWS). Versión en AWS: 9 de 9 pruebas en PASA (17/10/2026). Semgrep (`p/php` + `p/owasp-top-ten`): 0 hallazgos. GitHub Actions
 (`php -l`, Semgrep, Gitleaks) en verde.
 
 ---

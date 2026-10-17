@@ -830,9 +830,11 @@ Header unset X-Frame-Options
 Header always set X-Frame-Options "DENY"
 Header unset Referrer-Policy
 Header always set Referrer-Policy "strict-origin-when-cross-origin" """,
-        despues="Corregido en el repositorio. Se aplica al servidor con el próximo despliegue "
-                "(desplegar_y_evidenciar.ps1), donde la prueba 'VUL-22/29 Cabeceras' debe quedar en PASA.",
-        estado="Corregido en código – aplicar en AWS",
+        despues="Aplicado en la instancia y recargado Apache: cada cabecera aparece una sola vez "
+                "(también en las respuestas 403).\n"
+                "  [PASA] VUL-22/29 Cabeceras -> todas presentes\n"
+                "RESULTADO: 9 de 9 pruebas en PASA.",
+        estado="Corregido – verificado en AWS (17/10/2026)",
     ),
 ]
 
@@ -968,7 +970,7 @@ def construir(destino: Path):
         ["Código vulnerable", "rama main (commit 8d54176)"],
         ["Código corregido", "rama mejoras (un commit por grupo de vulnerabilidades)"],
         ["Versión en AWS", "rama mejoras — versión sin vulnerabilidades (sección 5)"],
-        ["Hallazgos", "34 (9 Críticos · 5 Altos · 1 Media-Alta · 9 Medios · 10 Bajos) — todos corregidos en el código"],
+        ["Hallazgos", "34 (9 Críticos · 5 Altos · 1 Media-Alta · 9 Medios · 10 Bajos) — todos corregidos y verificados en AWS"],
     ], anchos=[4.5, 12.5])
     doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
 
@@ -983,7 +985,7 @@ def construir(destino: Path):
         "6 más (VUL-028 a VUL-033). El testing en AWS del 17/10/2026 detectó una más (VUL-034)."
     )
     doc.add_paragraph(
-        "Las 34 vulnerabilidades quedaron corregidas en el código de la rama mejoras. "
+        "Las 34 vulnerabilidades quedaron corregidas en la rama mejoras y la versión publicada en AWS pasa las 9 pruebas automáticas (17/10/2026). "
         "VUL-001 a VUL-026 tienen evidencia de prueba (el ataque falla en la versión corregida). VUL-027 a "
         "VUL-033 se verifican con tests/test_seguridad.py (9 pruebas automáticas) y con la configuración "
         "versionada del despliegue, y se re-evidencian en cada despliegue con deploy/desplegar_y_evidenciar.ps1."
@@ -1089,7 +1091,7 @@ def construir(destino: Path):
         "tests/lab_local.sh levanta las dos ramas en bases de datos aisladas para reproducirlo sin AWS. "
         "Resultados completos en docs/evidencias/resultado_testing.txt (AWS) y "
         "docs/evidencias/resultado_local.txt (local, 05/10/2026). Despliegue en AWS del 17/10/2026: "
-        "8 de 9 pruebas en PASA; la novena detectó VUL-034 (cabeceras duplicadas)."
+        "la primera ejecución detectó VUL-034 (cabeceras duplicadas); tras corregirla, 9 de 9 pruebas en PASA."
     )
     codigo(doc, "pip install requests\n"
                 "python tests/test_seguridad.py \\\n"
@@ -1182,8 +1184,8 @@ def construir(destino: Path):
     doc.add_heading("7. Security Gate y riesgo residual", level=1)
     tabla_simple(doc, ["Campo", "Resultado"], [
         ["Aplicación / versión", "pnkSecurity · rama mejoras"],
-        ["Resultado", "APROBADO CON OBSERVACIÓN (VUL-034 pendiente de aplicar en AWS)"],
-        ["Hallazgos abiertos", "0 críticos · 0 altos · 0 medios · 1 bajo en AWS (VUL-034: corregido en código, falta aplicarlo a la instancia)"],
+        ["Resultado", "APROBADO"],
+        ["Hallazgos abiertos", "0 de 34 (críticos 0 · altos 0 · medios 0 · bajos 0)"],
         ["Controles automáticos", "tests/test_seguridad.py (9 pruebas) + GitHub Actions: php -l, Semgrep (SAST) y Gitleaks (secretos) en cada push"],
         ["Condición de liberación", "desplegar_y_evidenciar.ps1 debe terminar con todas las pruebas en PASA y el puerto 8080 cerrado"],
         ["Riesgo residual", "Bajo y aceptado: el tope de 30 intentos por cuenta permite bloquear temporalmente (15 min) "

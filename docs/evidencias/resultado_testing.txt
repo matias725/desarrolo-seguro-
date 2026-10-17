@@ -14,7 +14,7 @@ Corregida: https://174-129-56-84.sslip.io
   [vulnerable (esperado) ] VUL-22/29 Cabeceras        -> FALTAN: CSP estricta, nosniff, X-Frame-Options, cookie HttpOnly/SameSite
 
 
-### CORREGIDA: https://174-129-56-84.sslip.io
+### CORREGIDA (tras aplicar VUL-034 en la instancia, 17/10/2026)
   [PASA                  ] VUL-1  Login SQLi          -> sin sesión (bloqueado)
   [PASA                  ] VUL-2  SQLi en id          -> HTTP 404 (rechazado)
   [PASA                  ] VUL-6  SQLi mostrar_carrito -> HTTP 404
@@ -23,22 +23,19 @@ Corregida: https://174-129-56-84.sslip.io
   [PASA                  ] VUL-15 IDOR                -> HTTP 404
   [PASA                  ] VUL-21 Errores             -> HTTP 404, sin traza técnica
   [PASA                  ] VUL-19/25/30 Archivos      -> ninguno accesible
-  [FALLA                 ] VUL-22/29 Cabeceras        -> FALTAN: nosniff, X-Frame-Options
+  [PASA                  ] VUL-22/29 Cabeceras        -> todas presentes
 
-RESULTADO: 1 prueba(s) fallaron en la versión corregida.
+RESULTADO: la versión corregida bloquea todos los ataques probados.
 
------ Cabeceras de seguridad (versión corregida) -----
+----- Cabeceras de seguridad (versión corregida, una sola copia de cada una) -----
 X-Content-Type-Options: nosniff
 X-Frame-Options: DENY
 Referrer-Policy: strict-origin-when-cross-origin
 Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
 Cross-Origin-Opener-Policy: same-origin
 Cross-Origin-Resource-Policy: same-origin
-X-Content-Type-Options: nosniff
-X-Frame-Options: DENY
-Referrer-Policy: strict-origin-when-cross-origin
 Strict-Transport-Security: max-age=31536000; includeSubDomains
-Set-Cookie: PNKSESSID=ajiallamdlp4u7mf1opse8abjb; path=/; secure; HttpOnly; SameSite=Strict
+Set-Cookie: PNKSESSID=i6hmtt9v1fd5t76ue8rd19hmb6; path=/; secure; HttpOnly; SameSite=Strict
 
 ----- Otras verificaciones -----
 http://174-129-56-84.sslip.io -> 301 https://174-129-56-84.sslip.io/index.php?id=1   (VUL-033)
@@ -52,3 +49,5 @@ En la instancia (lectura por EC2 Instance Connect):
     [pnkSecurity][seguridad] csrf_rechazado ip=201.246.202.65 ruta=/setup/procesalogin.php
     [pnkSecurity][seguridad] csrf_rechazado ip=201.246.202.65 ruta=/carrito.php
     [pnkSecurity][seguridad] acceso_denegado ip=201.246.202.65 ruta=/grcomentarios.php comentario sin sesión
+
+Instancia anterior 54.197.67.4 (código previo a VUL-028..034): detenida.
