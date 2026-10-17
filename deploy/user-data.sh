@@ -91,7 +91,7 @@ cat > /etc/apache2/sites-available/pnk.conf <<CONF
         Options -Indexes -FollowSymLinks
         AllowOverride None
         Require all granted
-        <FilesMatch "^(config\.local\.php|setup\.php|\.ht.*|.*\.(sql|md|bak|ini|log))$">
+        <FilesMatch "^(config\..*\.php|setup\.php|\.ht.*|.*\.(sql|md|bak|ini|log|map|json|txt|sh|py))$">
             Require all denied
         </FilesMatch>
     </Directory>
@@ -182,8 +182,26 @@ for i in $(seq 1 60); do
     [ "$IP_ACTUAL" = "$IP_ESPERADA" ] && break
     sleep 10
 done
-certbot --apache -d "$DOMINIO" --non-interactive --agree-tos \
-        --register-unsafely-without-email --redirect \
-    || echo "AVISO: no se pudo emitir el certificado; el sitio queda solo en HTTP"
+# VUL033: si no hay certificado, la aplicación NO se publica por HTTP plano
+# (las contraseñas viajarían sin cifrar). Se reintenta y, si falla, el puerto
+# 80 responde 503 en vez de servir la aplicación.
+CERT_OK=0
+for intento in 1 2 3; do
+    if certbot --apache -d "$DOMINIO" --non-interactive --agree-tos \
+               --register-unsafely-without-email --redirect; then
+        CERT_OK=1; break
+    fi
+    sleep 60
+done
+if [ "$CERT_OK" != "1" ]; then
+    echo "ERROR: sin certificado TLS; la aplicación queda deshabilitada (503)"
+    cat > /etc/apache2/sites-available/pnk.conf <<CONF
+<VirtualHost *:80>
+    ServerName ${DOMINIO}
+    RedirectMatch 503 ^/
+</VirtualHost>
+CONF
+    systemctl reload apache2
+fi
 
 echo "DESPLIEGUE-COMPLETO"

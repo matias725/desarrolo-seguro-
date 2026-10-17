@@ -42,8 +42,13 @@ py tests/test_seguridad.py --vulnerable $orig --corregida $corr | Tee-Object -Fi
 (Invoke-WebRequest "$corr/index.php?id=1" -UseBasicParsing).RawContent.Split("`n") |
     Select-String '^(Content-Security|Strict-Transport|X-Frame|X-Content-Type|Referrer-Policy|Set-Cookie)' |
     ForEach-Object { $_.Line.Trim() } | Out-File $evid -Append -Encoding utf8
-"setup/setup.php -> HTTP " + $(try { (Invoke-WebRequest "$corr/setup/setup.php" -UseBasicParsing).StatusCode } catch { $_.Exception.Response.StatusCode.value__ }) |
-    Out-File $evid -Append -Encoding utf8
+
+# 3b. VUL027: apenas termina la evidencia se cierra el puerto 8080 en el
+# Security Group; la versión vulnerable deja de ser alcanzable de inmediato
+# (además se borra sola de la instancia a las 2 h).
+py -c "import boto3; ec2=boto3.client('ec2',region_name='us-east-1'); sg=ec2.describe_security_groups(Filters=[{'Name':'group-name','Values':['pnk-sg']}])['SecurityGroups'][0]; [ec2.revoke_security_group_ingress(GroupId=sg['GroupId'], IpPermissions=[p]) for p in sg['IpPermissions'] if p.get('FromPort')==8080]; print('Puerto 8080 cerrado en pnk-sg')"
+$cerrado = try { Invoke-WebRequest "$orig/index.php?id=1" -UseBasicParsing -TimeoutSec 10 | Out-Null; "ABIERTO" } catch { "cerrado (sin respuesta)" }
+"Version original :8080 tras el testing -> $cerrado" | Tee-Object -FilePath $evid -Append -Encoding utf8
 
 # 4. Informe con las URLs reales (+ PDF si Word está instalado)
 py scripts/generar_informe.py --ip $ip
