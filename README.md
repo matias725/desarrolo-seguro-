@@ -7,7 +7,7 @@ versión corregida en AWS con evidencia de testing.
 
 - **Integrantes:** Matías Zepeda ([@matias725](https://github.com/matias725)), Joaquín Andrés Zambra Zúñiga ([@Joacooooooo](https://github.com/Joacooooooo))
 - **Docente:** Jorge Cortés
-- **Aplicación desplegada (corregida):** https://54-197-67-4.sslip.io/index.php?id=1
+- **Aplicación desplegada (corregida):** https://174-129-56-84.sslip.io/index.php?id=1
 
 ---
 
@@ -155,7 +155,7 @@ pip install boto3
 python deploy/desplegar_aws.py --vulnerable --key vockey
 ```
 
-- **URL pública:** https://54-197-67-4.sslip.io/index.php?id=1
+- **URL pública:** https://174-129-56-84.sslip.io/index.php?id=1
 - **Servicio / región:** EC2 (Ubuntu 24.04), `us-east-1`
 - **Endurecimiento aplicado automáticamente:**
   - Security Group mínimo: 80/443 públicos; 22 y 8080 solo la IP del tester.
@@ -186,8 +186,8 @@ El mismo ataque se repite contra la versión **original** (`:8080`) y la
 ```bash
 pip install requests
 python tests/test_seguridad.py \
-    --vulnerable http://54.197.67.4:8080 \
-    --corregida  https://54-197-67-4.sslip.io
+    --vulnerable http://174.129.56.84:8080 \
+    --corregida  https://174-129-56-84.sslip.io
 ```
 
 | Prueba | Original `:8080` | Corregida (HTTPS) |

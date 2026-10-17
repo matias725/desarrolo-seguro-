@@ -40,6 +40,7 @@ C = {  # hash corto -> hash completo
     "e71f454": "e71f4544392b12d1959c9d3fd668dfe7ea4c8996",
     "e3b4e54": "e3b4e54dcd09fe7cea5854048c9ff0aef3546bfa",
     "c617a06": "c617a06591cab91869b608783825c8cbb94f79fb",
+    "62c29e9": "62c29e9925c07927b8647de92df3f5e38e476cda",
 }
 
 # Bloques de código reutilizados -------------------------------------------------
@@ -576,7 +577,7 @@ for EMAIL in admin@gmail.com alondra@gmail.com; do
 done""",
         despues="Evidencia de configuración (código de despliegue). Verificación en instancia: "
                 "login con admin01 falla; ls -l /var/log/pnk-deploy.log -> -rw------- root.",
-        estado="Corregido – re-verificar en el nuevo despliegue",
+        estado="Corregido – verificado en AWS (17/10/2026)",
     ),
     dict(
         id="VUL-024", nombre="Bloqueo de cuentas ajenas (DoS) en el límite de intentos",
@@ -650,7 +651,7 @@ pnk-retirar-original.timer  ->  OnBootSec=2h
 ec2.revoke_security_group_ingress(GroupId=sg, IpPermissions=[regla 8080])""",
         despues="desplegar_y_evidenciar.ps1 registra en resultado_testing.txt:\n"
                 "  Version original :8080 tras el testing -> cerrado (sin respuesta)",
-        estado="Corregido – re-verificar en el nuevo despliegue",
+        estado="Corregido – verificado en AWS (17/10/2026)",
     ),
     # ------------------------------------------------------------------ TERCERA REVISIÓN
     dict(
@@ -705,7 +706,7 @@ header('Cross-Origin-Resource-Policy: same-origin');
 <a class="button m-0" ...>Seleccionar</a>""",
         despues="Prueba 'VUL-22/29 Cabeceras' de tests/test_seguridad.py: falla si la CSP contiene "
                 "'unsafe-inline' o si falta nosniff, X-Frame-Options, HSTS o la cookie segura.",
-        estado="Corregido – verificar con test_seguridad.py",
+        estado="Corregido – verificado en AWS (17/10/2026)",
     ),
     dict(
         id="VUL-030", nombre="Librerías obsoletas y archivos sin uso publicados en el webroot",
@@ -734,7 +735,7 @@ $(".hero-banner__video").magnificPopup({...});""",
 <script src="js/controladorajax.js"></script>
 // webroot final: 4 librerías (jQuery 3.7.1, Bootstrap 4.6.2, Owl 2.3.4, Themify)""",
         despues="Prueba 'VUL-19/25/30 Archivos': las rutas de las librerías retiradas responden 404.",
-        estado="Corregido – verificar con test_seguridad.py",
+        estado="Corregido – verificado en AWS (17/10/2026)",
     ),
     dict(
         id="VUL-031", nombre="Fuerza bruta distribuida contra una cuenta y retención indefinida de IPs",
@@ -780,7 +781,7 @@ registrar_evento('csrf_rechazado');      registrar_evento('login_fallido', ...);
 registrar_evento('login_bloqueado', ...); registrar_evento('acceso_denegado', ...);""",
         despues="En la instancia: grep '\\[seguridad\\]' /var/log/apache2/pnk_error.log muestra los eventos "
                 "generados por test_seguridad.py (sin contraseñas ni tokens).",
-        estado="Corregido – verificar en el nuevo despliegue",
+        estado="Corregido – verificado en AWS (17/10/2026)",
     ),
     dict(
         id="VUL-033", nombre="Aplicación publicada por HTTP plano si falla el certificado TLS",
@@ -804,7 +805,34 @@ fi
 # + FilesMatch deniega también .map .json .txt .sh .py config.*.php""",
         despues="Con certificado: http:// redirige 301 a https://. Sin certificado: HTTP 503, la "
                 "aplicación nunca se sirve sin cifrar.",
-        estado="Corregido – verificar en el nuevo despliegue",
+        estado="Corregido – verificado en AWS (17/10/2026)",
+    ),
+    dict(
+        id="VUL-034", nombre="Cabeceras de seguridad duplicadas (Apache + PHP)",
+        sev="Baja", owasp="A05:2021 – Security Misconfiguration", asvs="V3 Web Frontend Security",
+        iso="A.8.9", asc="ASC-06, ASC-20",
+        desc="Detectado por tests/test_seguridad.py al desplegar en AWS: Apache agregaba X-Content-Type-"
+             "Options, X-Frame-Options y Referrer-Policy además de las que ya envía PHP. El navegador recibe "
+             "\"nosniff, nosniff\" y \"DENY, DENY\"; algunos navegadores y proxies descartan valores "
+             "repetidos, con lo que la protección contra MIME sniffing y clickjacking puede quedar sin efecto "
+             "(la CSP frame-ancestors 'none' sigue protegiendo el framing).",
+        url="https://<ip-aws>.sslip.io/index.php?id=1 (cabeceras de respuesta)",
+        evid="X-Content-Type-Options: nosniff\nX-Frame-Options: DENY\n...\nX-Content-Type-Options: nosniff\n"
+             "X-Frame-Options: DENY\n  [FALLA] VUL-22/29 Cabeceras -> FALTAN: nosniff, X-Frame-Options",
+        commits=["62c29e9"], archivo="deploy/user-data.sh, src/pnkSecurity/.htaccess",
+        orig="""Header always set X-Content-Type-Options "nosniff"
+Header always set X-Frame-Options "DENY"
+Header always set Referrer-Policy "strict-origin-when-cross-origin" """,
+        nuevo="""# PHP también envía estas cabeceras; se quita su copia y Apache deja una sola
+Header unset X-Content-Type-Options
+Header always set X-Content-Type-Options "nosniff"
+Header unset X-Frame-Options
+Header always set X-Frame-Options "DENY"
+Header unset Referrer-Policy
+Header always set Referrer-Policy "strict-origin-when-cross-origin" """,
+        despues="Corregido en el repositorio. Se aplica al servidor con el próximo despliegue "
+                "(desplegar_y_evidenciar.ps1), donde la prueba 'VUL-22/29 Cabeceras' debe quedar en PASA.",
+        estado="Corregido en código – aplicar en AWS",
     ),
 ]
 
@@ -940,7 +968,7 @@ def construir(destino: Path):
         ["Código vulnerable", "rama main (commit 8d54176)"],
         ["Código corregido", "rama mejoras (un commit por grupo de vulnerabilidades)"],
         ["Versión en AWS", "rama mejoras — versión sin vulnerabilidades (sección 5)"],
-        ["Hallazgos", "33 (9 Críticos · 5 Altos · 1 Media-Alta · 9 Medios · 9 Bajos) — todos corregidos"],
+        ["Hallazgos", "34 (9 Críticos · 5 Altos · 1 Media-Alta · 9 Medios · 10 Bajos) — todos corregidos en el código"],
     ], anchos=[4.5, 12.5])
     doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
 
@@ -952,10 +980,10 @@ def construir(destino: Path):
         "la corregida. La primera auditoría identificó 22 hallazgos (informe_pentesting_inicial.docx); "
         "una segunda revisión sobre la versión corregida y su despliegue agregó 5 más (VUL-023 a VUL-027) "
         "y una tercera revisión completa (código, librerías publicadas y aprovisionamiento de AWS) agregó "
-        "6 más (VUL-028 a VUL-033)."
+        "6 más (VUL-028 a VUL-033). El testing en AWS del 17/10/2026 detectó una más (VUL-034)."
     )
     doc.add_paragraph(
-        "Las 33 vulnerabilidades quedaron corregidas en la rama mejoras; no queda ningún hallazgo abierto. "
+        "Las 34 vulnerabilidades quedaron corregidas en el código de la rama mejoras. "
         "VUL-001 a VUL-026 tienen evidencia de prueba (el ataque falla en la versión corregida). VUL-027 a "
         "VUL-033 se verifican con tests/test_seguridad.py (9 pruebas automáticas) y con la configuración "
         "versionada del despliegue, y se re-evidencian en cada despliegue con deploy/desplegar_y_evidenciar.ps1."
@@ -1060,7 +1088,8 @@ def construir(destino: Path):
         "El script tests/test_seguridad.py repite los ataques contra ambas versiones; "
         "tests/lab_local.sh levanta las dos ramas en bases de datos aisladas para reproducirlo sin AWS. "
         "Resultados completos en docs/evidencias/resultado_testing.txt (AWS) y "
-        "docs/evidencias/resultado_local.txt (local, 05/10/2026)."
+        "docs/evidencias/resultado_local.txt (local, 05/10/2026). Despliegue en AWS del 17/10/2026: "
+        "8 de 9 pruebas en PASA; la novena detectó VUL-034 (cabeceras duplicadas)."
     )
     codigo(doc, "pip install requests\n"
                 "python tests/test_seguridad.py \\\n"
@@ -1153,8 +1182,8 @@ def construir(destino: Path):
     doc.add_heading("7. Security Gate y riesgo residual", level=1)
     tabla_simple(doc, ["Campo", "Resultado"], [
         ["Aplicación / versión", "pnkSecurity · rama mejoras"],
-        ["Resultado", "APROBADO"],
-        ["Hallazgos abiertos", "0 de 33 (críticos 0 · altos 0 · medios 0 · bajos 0)"],
+        ["Resultado", "APROBADO CON OBSERVACIÓN (VUL-034 pendiente de aplicar en AWS)"],
+        ["Hallazgos abiertos", "0 críticos · 0 altos · 0 medios · 1 bajo en AWS (VUL-034: corregido en código, falta aplicarlo a la instancia)"],
         ["Controles automáticos", "tests/test_seguridad.py (9 pruebas) + GitHub Actions: php -l, Semgrep (SAST) y Gitleaks (secretos) en cada push"],
         ["Condición de liberación", "desplegar_y_evidenciar.ps1 debe terminar con todas las pruebas en PASA y el puerto 8080 cerrado"],
         ["Riesgo residual", "Bajo y aceptado: el tope de 30 intentos por cuenta permite bloquear temporalmente (15 min) "

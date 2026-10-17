@@ -4,8 +4,8 @@ Testing comparativo ejecutado sobre el despliegue en AWS: cada ataque se repite
 contra la **versión original (vulnerable)** en `:8080` y contra la **versión
 corregida** (rama `mejoras`) publicada por HTTPS.
 
-- **Versión corregida:** https://54-197-67-4.sslip.io/index.php?id=1
-- **Versión original (solo para evidencia, restringida a la IP del tester):** http://54.197.67.4:8080/index.php?id=1
+- **Versión corregida:** https://174-129-56-84.sslip.io/index.php?id=1
+- **Versión original (solo para evidencia, restringida a la IP del tester):** http://174.129.56.84:8080/index.php?id=1
 - **Script reproducible:** [`tests/test_seguridad.py`](../../tests/test_seguridad.py)
 - **Salida completa (AWS):** [`resultado_testing.txt`](resultado_testing.txt)
 
@@ -14,8 +14,8 @@ Reproducir:
 ```bash
 pip install requests
 python tests/test_seguridad.py \
-    --vulnerable http://54.197.67.4:8080 \
-    --corregida  https://54-197-67-4.sslip.io
+    --vulnerable http://174.129.56.84:8080 \
+    --corregida  https://174-129-56-84.sslip.io
 ```
 
 ## Evidencia local (sin AWS)
@@ -54,5 +54,5 @@ Endurecimiento adicional confirmado: `setup/setup.php` responde **403**, el scri
 `.sql` no es accesible, y `http://` redirige a `https://` (301).
 
 > Nota: como AWS Academy recicla las instancias al cerrar el laboratorio, la IP
-> `54.197.67.4` puede dejar de responder; en ese caso se vuelve a desplegar con
+> `174.129.56.84` puede dejar de responder; en ese caso se vuelve a desplegar con
 > `python deploy/desplegar_aws.py --vulnerable` y se actualiza esta URL.
