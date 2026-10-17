@@ -25,24 +25,8 @@ $(function() {
 
 
 
-  //------- mailchimp --------//  
-	function mailChimp() {
-		$('#mc_embed_signup').find('form').ajaxChimp();
-	}
-  mailChimp();
-
-
-  //------- video popup -------//
-  $(".hero-banner__video").magnificPopup({
-    disableOn: 700,
-    type: "iframe",
-    mainClass: "mfp-fade",
-    removalDelay: 160,
-    preloader: false,
-    fixedContentPos: false
-  });
-
-
+  // VUL030: se retiraron mailchimp (ajaxChimp) y el popup de video
+  // (Magnific Popup): no se usaban y eran librerias obsoletas.
 
     /*-------------------------------------------------------------------------------
 	  featured slider
