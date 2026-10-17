@@ -8,7 +8,9 @@ Genera docs/informe_vulnerabilidades.docx con la estructura pedida:
   + versión en AWS sin vulnerabilidades
 
 Uso:  pip install python-docx  &&  python scripts/generar_informe.py
+      python scripts/generar_informe.py --ip 3.80.1.2   # URLs reales de AWS
 """
+import argparse
 from pathlib import Path
 
 from docx import Document
@@ -995,5 +997,14 @@ def construir(destino: Path):
 
 
 if __name__ == "__main__":
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--ip", help="IP elástica del despliegue en AWS (reemplaza <IP-AWS>)")
+    args = ap.parse_args()
+    if args.ip:
+        URL_ORIG = f"http://{args.ip}:8080"
+        URL_CORR = f"https://{args.ip.replace('.', '-')}.sslip.io"
+        for v in VULNS:
+            for k in ("url", "evid", "despues"):
+                v[k] = v[k].replace("http://<IP-AWS>:8080", URL_ORIG).replace("https://<ip-aws>.sslip.io", URL_CORR)
     raiz = Path(__file__).resolve().parent.parent
     construir(raiz / "docs" / "informe_vulnerabilidades.docx")

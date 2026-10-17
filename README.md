@@ -154,6 +154,14 @@ python deploy/desplegar_aws.py --vulnerable --key vockey
 
 Detalle del aprovisionamiento en [`deploy/user-data.sh`](deploy/user-data.sh).
 
+Despliegue + testing + informe actualizado en un solo paso (Windows):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File deploy\desplegar_y_evidenciar.ps1
+```
+
+Despliega en AWS, espera a que responda, repite los ataques contra ambas versiones, guarda la salida en `docs/evidencias/resultado_testing.txt` y regenera el informe con la IP real.
+
 ---
 
 ## 6. Testing — Evidencia de que la vulnerabilidad ya no existe
