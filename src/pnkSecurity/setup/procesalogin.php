@@ -10,6 +10,11 @@
  *         puede dejar sin acceso a otra persona fallando con su correo, porque
  *         sus intentos solo bloquean su propia IP. Además, un login exitoso
  *         con otra cuenta no reinicia el contador de la IP.
+ * VUL031: tope global por cuenta (desde cualquier IP) para frenar la fuerza
+ *         bruta distribuida (botnet). El umbral es alto para que bloquear a
+ *         otra persona exija un ataque sostenido y dure solo la ventana.
+ *         Los intentos de más de 24 h se eliminan (las IP son dato personal).
+ * VUL032: los fallos y bloqueos quedan registrados en el log del servidor.
  */
 
 include("setup.php");
@@ -19,7 +24,9 @@ validar_csrf();
 
 const MAX_INTENTOS_CUENTA = 5;   // por IP + correo
 const MAX_INTENTOS_IP     = 10;  // por IP, sin importar el correo
+const MAX_INTENTOS_GLOBAL = 30;  // por correo, desde cualquier IP (VUL031)
 const VENTANA_MINUTOS     = 15;
+const RETENCION_HORAS     = 24;
 
 $email    = trim((string) ($_POST['frmusuario'] ?? ''));
 $password = (string) ($_POST['frmpassword'] ?? '');
@@ -39,14 +46,26 @@ if ($email === '' || $password === '' || strlen($email) > 255 || strlen($passwor
     volver_con_mensaje($destino, 'Debe ingresar usuario y contraseña.');
 }
 
-// Límite de intentos (VUL018/VUL024): solo cuentan los fallos de esta IP.
+// Retención (VUL031): no se conservan IP más tiempo del necesario.
+consulta("DELETE FROM login_intentos WHERE creado < (NOW() - INTERVAL " . RETENCION_HORAS . " HOUR)");
+
+// Límite de intentos (VUL018/VUL024): fallos de esta IP y de esta IP+cuenta.
 $intentos = consulta_fila(
     "SELECT COUNT(*) AS por_ip, COALESCE(SUM(email = ?), 0) AS por_cuenta
      FROM login_intentos
      WHERE ip = ? AND creado > (NOW() - INTERVAL " . VENTANA_MINUTOS . " MINUTE)",
     'ss', $email, $ip
 );
-if ((int) $intentos['por_ip'] >= MAX_INTENTOS_IP || (int) $intentos['por_cuenta'] >= MAX_INTENTOS_CUENTA) {
+// VUL031: fallos de esta cuenta desde cualquier IP.
+$global = consulta_fila(
+    "SELECT COUNT(*) AS total FROM login_intentos
+     WHERE email = ? AND creado > (NOW() - INTERVAL " . VENTANA_MINUTOS . " MINUTE)",
+    's', $email
+);
+if ((int) $intentos['por_ip'] >= MAX_INTENTOS_IP
+    || (int) $intentos['por_cuenta'] >= MAX_INTENTOS_CUENTA
+    || (int) $global['total'] >= MAX_INTENTOS_GLOBAL) {
+    registrar_evento('login_bloqueado', 'cuenta=' . $email);
     volver_con_mensaje($destino, 'Demasiados intentos fallidos. Intente nuevamente en ' . VENTANA_MINUTOS . ' minutos.');
 }
 
@@ -62,6 +81,7 @@ $valido = password_verify($password, $hash) && $usuario !== null && $usuario['es
 
 if (!$valido) {
     consulta("INSERT INTO login_intentos (ip, email) VALUES (?, ?)", 'ss', $ip, $email);
+    registrar_evento('login_fallido', 'cuenta=' . $email);
     volver_con_mensaje($destino, 'Usuario o contraseña incorrectos.');
 }
 
@@ -73,6 +93,7 @@ session_regenerate_id(true);
 $_SESSION['usuario_id'] = (int) $usuario['Id'];
 $_SESSION['nombre']     = $usuario['nombre'];
 $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+registrar_evento('login_exitoso', 'usuario_id=' . (int) $usuario['Id']);
 
 header('Location: ' . $destino);
 exit;
