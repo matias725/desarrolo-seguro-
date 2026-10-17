@@ -96,6 +96,8 @@ En AWS las claves se generan al desplegar y solo root puede leerlas:
 ## 4. Informe de vulnerabilidades y correcciones
 
 Informe técnico inicial (22 hallazgos): [`docs/informe_pentesting_inicial.docx`](docs/informe_pentesting_inicial.docx).
+
+**Informe de vulnerabilidades y correcciones (27 hallazgos):** [`docs/informe_vulnerabilidades.docx`](docs/informe_vulnerabilidades.docx) · [PDF](docs/informe_vulnerabilidades.pdf). Por cada vulnerabilidad incluye: OWASP, descripción, URL, evidencia, commit Git, código original, código nuevo y evidencia sin vulnerabilidad. Se regenera con `python scripts/generar_informe.py`.
 Cada corrección está comentada en el código con su `VULxxx` y agrupada por commit.
 
 | ID | Vulnerabilidad | OWASP 2021 | Sev. | Corrección | Estado |
