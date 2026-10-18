@@ -74,13 +74,17 @@ set -x
 
 # --- Apache endurecido -------------------------------------------------------
 a2enmod headers ssl rewrite
-cat > /etc/apache2/conf-available/pnk-hardening.conf <<'CONF'
+# VUL035: el nombre empieza con "zz-" para cargarse DESPUÉS de security.conf
+# de Ubuntu, que de lo contrario vuelve a activar ServerTokens OS y
+# ServerSignature On (versión de Apache visible en cabeceras y páginas de error).
+cat > /etc/apache2/conf-available/zz-pnk-hardening.conf <<'CONF'
 ServerTokens Prod
 ServerSignature Off
 TraceEnable Off
 Header always unset X-Powered-By
 CONF
-a2enconf pnk-hardening
+sed -i 's/^ServerTokens .*/ServerTokens Prod/; s/^ServerSignature .*/ServerSignature Off/' /etc/apache2/conf-available/security.conf
+a2enconf zz-pnk-hardening
 
 cat > /etc/apache2/sites-available/pnk.conf <<CONF
 <VirtualHost *:80>

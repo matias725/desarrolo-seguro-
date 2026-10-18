@@ -121,6 +121,8 @@ def t_cabeceras(base):
         faltan.append("cookie HttpOnly/SameSite")
     if base.startswith("https") and ("secure" not in cookie or "Strict-Transport-Security" not in h):
         faltan.append("HSTS/cookie Secure")
+    if re.search(r"\d", h.get("Server", "")):   # VUL-035: sin versión del servidor
+        faltan.append("ocultar versión en Server (" + h.get("Server") + ")")
     return not faltan, ("todas presentes" if not faltan else "FALTAN: " + ", ".join(faltan))
 
 
