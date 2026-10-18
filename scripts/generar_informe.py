@@ -863,9 +863,10 @@ sed -i 's/^ServerTokens .*/ServerTokens Prod/; s/^ServerSignature .*/ServerSigna
     /etc/apache2/conf-available/security.conf
 a2enconf zz-pnk-hardening
 # test_seguridad.py: falla si la cabecera Server contiene un número de versión""",
-        despues="Con el nuevo user-data.sh: Server: Apache (sin versión) y páginas de error sin firma. "
-                "Se verifica con la prueba 'VUL-22/29 Cabeceras' en el próximo despliegue.",
-        estado="Corregido en código – aplicar en AWS",
+        despues="Aplicado en la instancia (18/10/2026):\n  Server: Apache\n"
+                "  /setup/setup.php -> <h1>Forbidden</h1> (sin firma de versión)\n"
+                "  [PASA] VUL-22/29 Cabeceras -> todas presentes   ·   RESULTADO: 9 de 9 pruebas en PASA",
+        estado="Corregido – verificado en AWS (18/10/2026)",
     ),
 ]
 
@@ -1058,7 +1059,7 @@ def construir(destino: Path):
         ["Código vulnerable", "rama main (commit 8d54176)"],
         ["Código corregido", "rama mejoras (un commit por grupo de vulnerabilidades)"],
         ["Versión en AWS", "rama mejoras — versión sin vulnerabilidades (sección 5)"],
-        ["Hallazgos", "35 (9 Críticos · 5 Altos · 1 Media-Alta · 9 Medios · 11 Bajos) — todos corregidos"],
+        ["Hallazgos", "35 (9 Críticos · 5 Altos · 1 Media-Alta · 9 Medios · 11 Bajos) — todos corregidos y verificados"],
     ], anchos=[4.5, 12.5])
     doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
 
@@ -1276,8 +1277,8 @@ def construir(destino: Path):
     doc.add_heading("7. Security Gate y riesgo residual", level=1)
     tabla_simple(doc, ["Campo", "Resultado"], [
         ["Aplicación / versión", "pnkSecurity · rama mejoras"],
-        ["Resultado", "APROBADO (VUL-035 se aplica en AWS con el próximo despliegue)"],
-        ["Hallazgos abiertos", "0 de 35 en el código (críticos 0 · altos 0 · medios 0 · bajos 0)"],
+        ["Resultado", "APROBADO"],
+        ["Hallazgos abiertos", "0 de 35 (críticos 0 · altos 0 · medios 0 · bajos 0) — 9 de 9 pruebas en PASA en AWS (18/10/2026)"],
         ["Controles automáticos", "tests/test_seguridad.py (9 pruebas) + GitHub Actions: php -l, Semgrep (SAST) y Gitleaks (secretos) en cada push"],
         ["Condición de liberación", "desplegar_y_evidenciar.ps1 debe terminar con todas las pruebas en PASA y el puerto 8080 cerrado"],
         ["Riesgo residual", "Bajo y aceptado: el tope de 30 intentos por cuenta permite bloquear temporalmente (15 min) "

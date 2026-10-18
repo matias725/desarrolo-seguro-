@@ -51,3 +51,9 @@ En la instancia (lectura por EC2 Instance Connect):
     [pnkSecurity][seguridad] acceso_denegado ip=201.246.202.65 ruta=/grcomentarios.php comentario sin sesión
 
 Instancia anterior 54.197.67.4 (código previo a VUL-028..034): detenida.
+
+----- 18/10/2026: VUL-035 aplicado -----
+Server: Apache   (antes: Apache/2.4.58 (Ubuntu))
+/setup/setup.php -> 403 Forbidden sin firma de version
+test_seguridad.py --corregida https://174-129-56-84.sslip.io -> 9 de 9 PASA
+Instancia temporal 52.2.60.65 (version original para capturas): detenida
