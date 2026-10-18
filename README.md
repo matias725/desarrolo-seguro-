@@ -97,7 +97,7 @@ En AWS las claves se generan al desplegar y solo root puede leerlas:
 
 Informe técnico inicial (22 hallazgos): [`docs/informe_pentesting_inicial.docx`](docs/informe_pentesting_inicial.docx).
 
-**Informe de vulnerabilidades y correcciones (33 hallazgos):** [`docs/informe_vulnerabilidades.docx`](docs/informe_vulnerabilidades.docx) · [PDF](docs/informe_vulnerabilidades.pdf). Por cada vulnerabilidad incluye: OWASP, descripción, URL, evidencia, commit Git, código original, código nuevo y evidencia sin vulnerabilidad. Se regenera con `python scripts/generar_informe.py`.
+**Informe de vulnerabilidades y correcciones (35 hallazgos):** [`docs/informe_vulnerabilidades.docx`](docs/informe_vulnerabilidades.docx) · [PDF](docs/informe_vulnerabilidades.pdf). Por cada vulnerabilidad incluye: OWASP, descripción, URL, evidencia, commit Git, código original, código nuevo y evidencia sin vulnerabilidad. Se regenera con `python scripts/generar_informe.py`.
 Cada corrección está comentada en el código con su `VULxxx` y agrupada por commit.
 
 | ID | Vulnerabilidad | OWASP 2021 | Sev. | Corrección | Estado |
@@ -140,7 +140,7 @@ Cada corrección está comentada en el código con su `VULxxx` y agrupada por co
 | VUL-32 | Sin registro de eventos de seguridad | A09 | Baja | `registrar_evento()` + CI con Semgrep y Gitleaks | ✅ |
 | VUL-33 | App publicada por HTTP si falla el certificado | A02 | Media | Fail-closed: HTTP 503 sin certificado | ✅ |
 
-**Estado: 34 de 34 corregidas** (VUL-34: cabeceras duplicadas, detectada y corregida al probar en AWS). Versión en AWS: 9 de 9 pruebas en PASA (17/10/2026). Semgrep (`p/php` + `p/owasp-top-ten`): 0 hallazgos. GitHub Actions
+**Estado: 35 de 35 corregidas** (VUL-35: versión de Apache visible, detectada en las capturas). (VUL-34: cabeceras duplicadas, detectada y corregida al probar en AWS). Versión en AWS: 9 de 9 pruebas en PASA (17/10/2026). Semgrep (`p/php` + `p/owasp-top-ten`): 0 hallazgos. GitHub Actions
 (`php -l`, Semgrep, Gitleaks) en verde.
 
 ---

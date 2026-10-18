@@ -41,6 +41,7 @@ C = {  # hash corto -> hash completo
     "e3b4e54": "e3b4e54dcd09fe7cea5854048c9ff0aef3546bfa",
     "c617a06": "c617a06591cab91869b608783825c8cbb94f79fb",
     "62c29e9": "62c29e9925c07927b8647de92df3f5e38e476cda",
+    "baf7250": "baf72507e2685878e602613375687aeca4c58f8f",
 }
 
 # Bloques de código reutilizados -------------------------------------------------
@@ -836,7 +837,77 @@ Header always set Referrer-Policy "strict-origin-when-cross-origin" """,
                 "RESULTADO: 9 de 9 pruebas en PASA.",
         estado="Corregido – verificado en AWS (17/10/2026)",
     ),
+    dict(
+        id="VUL-035", nombre="Versión de Apache visible en cabeceras y páginas de error",
+        sev="Baja", owasp="A05:2021 – Security Misconfiguration", asvs="V13 Configuration",
+        iso="A.8.9", asc="ASC-06, ASC-26",
+        desc="Detectado en las capturas del 18/10/2026: las páginas 403/404 y la cabecera Server mostraban "
+             "\"Apache/2.4.58 (Ubuntu)\". El archivo de endurecimiento se cargaba antes que security.conf de "
+             "Ubuntu, que volvía a activar ServerTokens OS y ServerSignature On. Conocer la versión exacta "
+             "facilita buscar CVE específicos del servidor.",
+        url="Cualquier respuesta; visible en /setup/setup.php (403) y rutas inexistentes (404)",
+        evid="Server: Apache/2.4.58 (Ubuntu)\n"
+             "Forbidden ... Apache/2.4.58 (Ubuntu) Server at 174-129-56-84.sslip.io Port 443",
+        commits=["baf7250"], archivo="deploy/user-data.sh, tests/test_seguridad.py",
+        orig="""cat > /etc/apache2/conf-available/pnk-hardening.conf <<'CONF'
+ServerTokens Prod
+ServerSignature Off
+CONF
+a2enconf pnk-hardening      # se carga ANTES que security.conf (ServerTokens OS)""",
+        nuevo="""# "zz-" para cargarse DESPUÉS de security.conf de Ubuntu
+cat > /etc/apache2/conf-available/zz-pnk-hardening.conf <<'CONF'
+ServerTokens Prod
+ServerSignature Off
+CONF
+sed -i 's/^ServerTokens .*/ServerTokens Prod/; s/^ServerSignature .*/ServerSignature Off/' \\
+    /etc/apache2/conf-available/security.conf
+a2enconf zz-pnk-hardening
+# test_seguridad.py: falla si la cabecera Server contiene un número de versión""",
+        despues="Con el nuevo user-data.sh: Server: Apache (sin versión) y páginas de error sin firma. "
+                "Se verifica con la prueba 'VUL-22/29 Cabeceras' en el próximo despliegue.",
+        estado="Corregido en código – aplicar en AWS",
+    ),
 ]
+
+# Ruta exacta de cada vulnerabilidad (se completa con el host de cada versión
+# al generar el informe, para mostrar la URL completa).
+RUTAS = {
+    "VUL-001": "/setup/procesalogin.php",
+    "VUL-002": "/index.php?id=0 UNION SELECT 1-- -",
+    "VUL-003": "/index.php?id=0 UNION SELECT 1-- -",
+    "VUL-004": "/index.php?id=0 UNION SELECT 1-- -",
+    "VUL-005": "/index.php?id=0 UNION SELECT 1-- -",
+    "VUL-006": "/mostrar_carrito.php?id=1 OR 1=1",
+    "VUL-007": "/carrito.php",
+    "VUL-008": "/grcomentarios.php",
+    "VUL-009": "/setup/procesalogin.php",
+    "VUL-010": "/index.php?id=1",
+    "VUL-011": "/setup/procesalogin.php",
+    "VUL-012": "/grcomentarios.php",
+    "VUL-013": "/carrito.php",
+    "VUL-014": "/grcomentarios.php",
+    "VUL-015": "/index.php?id=999",
+    "VUL-016": "/carrito.php",
+    "VUL-017": "/setup/procesalogin.php",
+    "VUL-018": "/setup/procesalogin.php",
+    "VUL-019": "/setup/setup.php",
+    "VUL-020": "/carrito.php",
+    "VUL-021": "/index.php?id=1'",
+    "VUL-022": "/index.php?id=1",
+    "VUL-023": "/setup/procesalogin.php",
+    "VUL-024": "/setup/procesalogin.php",
+    "VUL-025": "/vendors/jquery/jquery-3.2.1.min.js",
+    "VUL-026": "/grcomentarios.php",
+    "VUL-027": "/index.php?id=1",
+    "VUL-028": "/index.php?id=1",
+    "VUL-029": "/index.php?id=1",
+    "VUL-030": "/vendors/fontawesome/bootstrap.bundle.min.js",
+    "VUL-031": "/setup/procesalogin.php",
+    "VUL-032": "/grcomentarios.php",
+    "VUL-033": "/index.php?id=1",
+    "VUL-034": "/index.php?id=1",
+    "VUL-035": "/setup/setup.php",
+}
 
 ORDEN_SEV = {"Crítica": 0, "Alta": 1, "Media-Alta": 2, "Media": 3, "Baja": 4}
 VULNS.sort(key=lambda v: (int(v["id"][4:])))
@@ -931,6 +1002,23 @@ def tabla_simple(doc, cabecera, filas, anchos=None, cab_color="1F3A5F"):
     return t
 
 
+CAPTURAS = Path(__file__).resolve().parent.parent / "docs" / "evidencias" / "capturas"
+
+
+def captura(doc, vid, version):
+    """Inserta docs/evidencias/capturas/<VUL-xxx>_<version>.png si existe."""
+    img = CAPTURAS / f"{vid}_{version}.png"
+    if not img.is_file():
+        return
+    doc.add_picture(str(img), width=Cm(16))
+    doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    r = p.add_run(f"Captura: {vid} — versión {version} ({img.name})")
+    r.italic = True
+    r.font.size = Pt(8)
+
+
 def estado(v):
     return v.get("estado", "Corregido – verificado")
 
@@ -970,7 +1058,7 @@ def construir(destino: Path):
         ["Código vulnerable", "rama main (commit 8d54176)"],
         ["Código corregido", "rama mejoras (un commit por grupo de vulnerabilidades)"],
         ["Versión en AWS", "rama mejoras — versión sin vulnerabilidades (sección 5)"],
-        ["Hallazgos", "34 (9 Críticos · 5 Altos · 1 Media-Alta · 9 Medios · 10 Bajos) — todos corregidos y verificados en AWS"],
+        ["Hallazgos", "35 (9 Críticos · 5 Altos · 1 Media-Alta · 9 Medios · 11 Bajos) — todos corregidos"],
     ], anchos=[4.5, 12.5])
     doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
 
@@ -982,10 +1070,10 @@ def construir(destino: Path):
         "la corregida. La primera auditoría identificó 22 hallazgos (informe_pentesting_inicial.docx); "
         "una segunda revisión sobre la versión corregida y su despliegue agregó 5 más (VUL-023 a VUL-027) "
         "y una tercera revisión completa (código, librerías publicadas y aprovisionamiento de AWS) agregó "
-        "6 más (VUL-028 a VUL-033). El testing en AWS del 17/10/2026 detectó una más (VUL-034)."
+        "6 más (VUL-028 a VUL-033). El testing en AWS del 17/10/2026 detectó una más (VUL-034) y las capturas del 18/10/2026 otra (VUL-035)."
     )
     doc.add_paragraph(
-        "Las 34 vulnerabilidades quedaron corregidas en la rama mejoras y la versión publicada en AWS pasa las 9 pruebas automáticas (17/10/2026). "
+        "Las 35 vulnerabilidades quedaron corregidas en la rama mejoras y la versión publicada en AWS pasa las 9 pruebas automáticas. Las vulnerabilidades principales incluyen capturas de pantalla del ataque en la versión original y del bloqueo en la corregida. "
         "VUL-001 a VUL-026 tienen evidencia de prueba (el ataque falla en la versión corregida). VUL-027 a "
         "VUL-033 se verifican con tests/test_seguridad.py (9 pruebas automáticas) y con la configuración "
         "versionada del despliegue, y se re-evidencian en cada despliegue con deploy/desplegar_y_evidenciar.ps1."
@@ -1042,7 +1130,9 @@ def construir(destino: Path):
                        ("OWASP Top 10", v["owasp"]),
                        ("OWASP ASVS v5.0.0", v["asvs"]),
                        ("Descripción", v["desc"]),
-                       ("URL", v["url"]),
+                       ("URL original", URL_ORIG + RUTAS[v["id"]]),
+                       ("URL corregida", URL_CORR + RUTAS[v["id"]]),
+                       ("Petición / vector", v["url"]),
                        ("Archivo(s)", v["archivo"]),
                        ("ISO/IEC 27001:2022", v["iso"]),
                        ("ISO/IEC 27034 (ASC)", v["asc"]),
@@ -1067,6 +1157,7 @@ def construir(destino: Path):
 
         etiqueta(doc, "Evidencia (versión original — vulnerable)", ROJO)
         codigo(doc, v["evid"], "FBEAEA")
+        captura(doc, v["id"], "original")
 
         etiqueta(doc, "Corrección", AZUL)
         p = doc.add_paragraph("Commit Git: ")
@@ -1083,6 +1174,7 @@ def construir(destino: Path):
 
         etiqueta(doc, "Evidencia sin vulnerabilidad (versión corregida)", VERDE)
         codigo(doc, v["despues"], "EAF6EC", separar=False)
+        captura(doc, v["id"], "corregida")
 
     # 4. Testing ---------------------------------------------------------------------
     doc.add_heading("4. Evidencia de testing (sin vulnerabilidad)", level=1).paragraph_format.page_break_before = True
@@ -1184,8 +1276,8 @@ def construir(destino: Path):
     doc.add_heading("7. Security Gate y riesgo residual", level=1)
     tabla_simple(doc, ["Campo", "Resultado"], [
         ["Aplicación / versión", "pnkSecurity · rama mejoras"],
-        ["Resultado", "APROBADO"],
-        ["Hallazgos abiertos", "0 de 34 (críticos 0 · altos 0 · medios 0 · bajos 0)"],
+        ["Resultado", "APROBADO (VUL-035 se aplica en AWS con el próximo despliegue)"],
+        ["Hallazgos abiertos", "0 de 35 en el código (críticos 0 · altos 0 · medios 0 · bajos 0)"],
         ["Controles automáticos", "tests/test_seguridad.py (9 pruebas) + GitHub Actions: php -l, Semgrep (SAST) y Gitleaks (secretos) en cada push"],
         ["Condición de liberación", "desplegar_y_evidenciar.ps1 debe terminar con todas las pruebas en PASA y el puerto 8080 cerrado"],
         ["Riesgo residual", "Bajo y aceptado: el tope de 30 intentos por cuenta permite bloquear temporalmente (15 min) "
@@ -1206,9 +1298,10 @@ def construir(destino: Path):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--ip", help="IP elástica del despliegue en AWS (reemplaza <IP-AWS>)")
+    ap.add_argument("--ip-original", help="IP donde se publicó la versión original en :8080, si es otra")
     args = ap.parse_args()
     if args.ip:
-        URL_ORIG = f"http://{args.ip}:8080"
+        URL_ORIG = f"http://{args.ip_original or args.ip}:8080"
         URL_CORR = f"https://{args.ip.replace('.', '-')}.sslip.io"
         for v in VULNS:
             for k in ("url", "evid", "despues"):
