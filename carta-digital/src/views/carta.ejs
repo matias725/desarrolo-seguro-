@@ -1,0 +1,99 @@
+<%- include('partials/head') %>
+
+<section class="resto" data-restaurante="<%= restaurante.id %>">
+  <div class="contenedor resto__fila">
+    <img class="resto__logo" src="<%= imagenRestaurante(restaurante.id, restaurante.foto) %>" alt="Logo de <%= restaurante.nombre %>" width="112" height="112">
+    <div class="resto__datos">
+      <h1><%= restaurante.nombre %></h1>
+      <p>📍 <%= restaurante.calle %> #<%= restaurante.numero %>, <%= restaurante.comuna %></p>
+      <p>
+        <% if (restaurante.fono) { %><span>📞 <%= restaurante.fono %></span><% } %>
+        <% if (restaurante.email) { %><span>✉️ <%= restaurante.email %></span><% } %>
+      </p>
+    </div>
+    <a class="btn btn--carrito" href="/restaurantes/<%= restaurante.id %>/carrito">
+      🛒 Mi pedido <span class="contador" id="contador-carrito"><%= enCarrito %></span>
+    </a>
+  </div>
+</section>
+
+<% if (destacados.length > 0) { %>
+<section class="contenedor bloque">
+  <h2 class="titulo-seccion">Destacados</h2>
+  <div class="carrusel">
+    <% destacados.forEach(function (item) { %>
+      <%- include('partials/plato', { item: item, restauranteId: restaurante.id, grande: true }) %>
+    <% }) %>
+  </div>
+</section>
+<% } %>
+
+<section class="contenedor bloque">
+  <h2 class="titulo-seccion">Nuestra carta</h2>
+
+  <% if (cartas.length === 0) { %>
+    <p class="vacio">Este restaurante aún no publica su carta.</p>
+  <% } else { %>
+    <div class="pestanas" role="tablist">
+      <% cartas.forEach(function (carta, i) { %>
+        <button type="button" role="tab" id="tab-<%= carta.id %>" aria-controls="panel-<%= carta.id %>"
+                aria-selected="<%= i === 0 %>" class="pestana"><%= carta.nombre %></button>
+      <% }) %>
+    </div>
+
+    <% cartas.forEach(function (carta, i) { %>
+      <div class="panel" role="tabpanel" id="panel-<%= carta.id %>" aria-labelledby="tab-<%= carta.id %>">
+        <h3 class="panel__titulo-sinjs"><%= carta.nombre %></h3>
+        <% if (carta.categorias.length === 0) { %>
+          <p class="vacio">No hay información para mostrar.</p>
+        <% } %>
+        <% carta.categorias.forEach(function (cat) { %>
+          <h3 class="categoria"><%= cat.nombre %></h3>
+          <% if (cat.items.length === 0) { %>
+            <p class="vacio">Pronto agregaremos productos aquí.</p>
+          <% } else { %>
+            <div class="lista-platos">
+              <% cat.items.forEach(function (item) { %>
+                <%- include('partials/plato', { item: item, restauranteId: restaurante.id, grande: false }) %>
+              <% }) %>
+            </div>
+          <% } %>
+        <% }) %>
+      </div>
+    <% }) %>
+  <% } %>
+</section>
+
+<section class="contenedor bloque" id="comentarios">
+  <h2 class="titulo-seccion">Comentarios</h2>
+
+  <% if (usuario) { %>
+    <form class="form-comentario" action="/restaurantes/<%= restaurante.id %>/comentarios" method="post">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <label for="comentario">Comentando como <strong><%= usuario.nombre %></strong></label>
+      <textarea id="comentario" name="comentario" rows="4" required minlength="2" maxlength="1000"
+                placeholder="¿Qué te pareció?"></textarea>
+      <button type="submit" class="btn">Publicar comentario</button>
+    </form>
+  <% } else { %>
+    <p class="nota">Inicia sesión para dejar un comentario.</p>
+  <% } %>
+
+  <% if (comentarios.length === 0) { %>
+    <p class="vacio">Todavía no hay comentarios. ¡Sé el primero!</p>
+  <% } else { %>
+    <ul class="comentarios">
+      <% comentarios.forEach(function (c) { %>
+        <li class="comentario">
+          <div class="comentario__cabecera">
+            <strong><%= c.usuario %></strong>
+            <time datetime="<%= new Date(c.creado).toISOString() %>"><%= fecha(c.creado) %></time>
+          </div>
+          <p><%= c.comentario %></p>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+</section>
+
+<%- include('partials/footer') %>

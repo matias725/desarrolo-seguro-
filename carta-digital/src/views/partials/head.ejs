@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="<%= csrfToken %>">
+  <title><%= titulo %></title>
+  <link rel="icon" href="/img/Fevicon.png" type="image/png">
+  <link rel="stylesheet" href="/css/estilos.css">
+  <script src="/js/app.js" defer></script>
+</head>
+<body>
+<header class="barra">
+  <div class="contenedor barra__fila">
+    <a class="marca" href="/">
+      <img src="/img/logo.png" alt="" width="36" height="36">
+      <span>Carta Digital</span>
+    </a>
+
+    <% if (usuario) { %>
+      <form class="sesion" action="/logout" method="post">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="hidden" name="volver" value="<%= rutaActual %>">
+        <span class="sesion__hola">Hola, <strong><%= usuario.nombre %></strong></span>
+        <button type="submit" class="btn btn--fantasma">Cerrar sesión</button>
+      </form>
+    <% } else { %>
+      <details class="login">
+        <summary class="btn btn--fantasma">Iniciar sesión</summary>
+        <form class="login__form" action="/login" method="post" autocomplete="on">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <input type="hidden" name="volver" value="<%= rutaActual %>">
+          <label>Correo
+            <input type="email" name="email" required maxlength="255" autocomplete="username">
+          </label>
+          <label>Contraseña
+            <input type="password" name="password" required maxlength="128" autocomplete="current-password">
+          </label>
+          <button type="submit" class="btn">Ingresar</button>
+        </form>
+      </details>
+    <% } %>
+  </div>
+</header>
+
+<% if (aviso) { %>
+  <div class="aviso aviso--<%= aviso.tipo === 'ok' ? 'ok' : 'error' %>" role="status">
+    <div class="contenedor"><%= aviso.texto %></div>
+  </div>
+<% } %>
+
+<main>

@@ -17,6 +17,7 @@ versión corregida en AWS con evidencia de testing.
 |------|-----------|
 | `main` | Proyecto original con el **código vulnerable** |
 | `mejoras` | Proyecto con las **correcciones** de seguridad aplicadas |
+| `carta-digital` | 3ª entrega: carta digital reescrita en **Node.js + Express + PostgreSQL (MVC)** → ver [`carta-digital/README.md`](carta-digital/README.md) |
 
 Para comparar el código vulnerable con el corregido:
 

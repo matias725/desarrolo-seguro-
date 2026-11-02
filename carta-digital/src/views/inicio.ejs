@@ -1,0 +1,30 @@
+<%- include('partials/head') %>
+
+<section class="portada">
+  <div class="contenedor">
+    <h1>Elige tu restaurante</h1>
+    <p>Revisa la carta, arma tu pedido y deja tu comentario.</p>
+  </div>
+</section>
+
+<section class="contenedor">
+  <% if (restaurantes.length === 0) { %>
+    <p class="vacio">Aún no hay restaurantes publicados.</p>
+  <% } else { %>
+    <ul class="grilla-restaurantes">
+      <% restaurantes.forEach(function (r) { %>
+        <li>
+          <a class="tarjeta-resto" href="/restaurantes/<%= r.id %>">
+            <img src="<%= imagenRestaurante(r.id, r.foto) %>" alt="" width="72" height="72" loading="lazy">
+            <span>
+              <strong><%= r.nombre %></strong>
+              <small><%= r.comuna %></small>
+            </span>
+          </a>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+</section>
+
+<%- include('partials/footer') %>

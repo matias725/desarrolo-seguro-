@@ -1,0 +1,44 @@
+<%- include('partials/head') %>
+
+<section class="contenedor bloque">
+  <a class="volver" href="/restaurantes/<%= restaurante.id %>">← Volver a la carta</a>
+  <h1 class="titulo-pagina">Tu pedido en <%= restaurante.nombre %></h1>
+
+  <% if (lineas.length === 0) { %>
+    <p class="vacio">Aún no has agregado productos.</p>
+  <% } else { %>
+    <table class="tabla-pedido">
+      <thead>
+        <tr><th>Producto</th><th>Cant.</th><th class="num">Precio</th><th class="num">Subtotal</th><th><span class="oculto">Acciones</span></th></tr>
+      </thead>
+      <tbody>
+        <% lineas.forEach(function (l) { %>
+          <tr>
+            <td><%= l.nombre %></td>
+            <td><%= l.cantidad %></td>
+            <td class="num"><%= moneda(l.precio) %></td>
+            <td class="num"><%= moneda(l.subtotal) %></td>
+            <td>
+              <form action="/restaurantes/<%= restaurante.id %>/carrito/eliminar" method="post">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="hidden" name="itemId" value="<%= l.id %>">
+                <button type="submit" class="btn btn--chico btn--fantasma" aria-label="Quitar uno de <%= l.nombre %>">Quitar</button>
+              </form>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+      <tfoot>
+        <tr><th colspan="3">Total</th><th class="num"><%= moneda(total) %></th><th></th></tr>
+      </tfoot>
+    </table>
+
+    <form action="/restaurantes/<%= restaurante.id %>/carrito/vaciar" method="post" class="acciones-pedido">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button type="submit" class="btn btn--fantasma">Vaciar pedido</button>
+    </form>
+    <p class="nota">Muestra este pedido al garzón para confirmarlo.</p>
+  <% } %>
+</section>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,22 @@
+<%# Tarjeta de un plato. Variables: item, restauranteId, grande (bool) %>
+<article class="plato <%= grande ? 'plato--destacado' : '' %>">
+  <img class="plato__foto" src="<%= imagenRestaurante(restauranteId, item.foto, '/img/logo_empresa_comodin.png') %>"
+       alt="<%= item.nombre %>" loading="lazy" width="<%= grande ? 320 : 96 %>" height="<%= grande ? 200 : 96 %>">
+  <div class="plato__cuerpo">
+    <div class="plato__titulo">
+      <h4><%= item.nombre %></h4>
+      <span class="precio"><%= moneda(item.precio) %></span>
+    </div>
+    <% if (item.descripcion) { %><p class="plato__desc"><%= item.descripcion %></p><% } %>
+    <% if (item.observaciones) { %><p class="plato__obs"><%= item.observaciones %></p><% } %>
+    <div class="plato__pie">
+      <span class="plato__meta">
+        <% if (item.puntuacion > 0) { %>
+          <span class="estrellas" aria-label="<%= item.puntuacion %> de 5 estrellas"><%= '★'.repeat(item.puntuacion) %><span class="estrellas__vacias"><%= '★'.repeat(5 - item.puntuacion) %></span></span>
+        <% } %>
+        <% if (item.tiempo) { %><span class="tiempo">⏱ <%= item.tiempo %></span><% } %>
+      </span>
+      <button type="button" class="btn btn--chico" data-agregar="<%= item.id %>">Agregar</button>
+    </div>
+  </div>
+</article>
