@@ -2,7 +2,7 @@ const Restaurante = require('../models/restauranteModel');
 const Carta = require('../models/cartaModel');
 const Comentario = require('../models/comentarioModel');
 const { parseId } = require('../utils/validacion');
-const { totalItemsCarrito } = require('./carritoController');
+const Carrito = require('../services/carritoService');
 
 function error404() {
   const err = new Error('Restaurante no encontrado');
@@ -36,7 +36,7 @@ async function verCarta(req, res, next) {
     cartas,
     destacados,
     comentarios,
-    enCarrito: totalItemsCarrito(req, id),
+    enCarrito: Carrito.totalItems(req, id),
   });
 }
 

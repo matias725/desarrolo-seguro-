@@ -1,4 +1,4 @@
-# Carta Digital — Node.js + Express + PostgreSQL (MVC)
+# Carta Digital — Node.js + Express + PostgreSQL (MVC) · Backend v2
 
 Tercera entrega de **Desarrollo Seguro**: la carta digital de `pnkSecurity`
 (PHP + MySQL) reescrita en **Node.js + Express + PostgreSQL** con arquitectura
@@ -23,6 +23,27 @@ informe de pentesting.
 | Iniciar / cerrar sesión | `POST /login`, `POST /logout` |
 | Healthcheck (Docker / balanceador) | `GET /health` |
 | URL antigua `index.php?id=1` | redirige a `/restaurantes/1` |
+| **API REST v1** (48 endpoints, ver sección 7) | `/api/v1/...` |
+| **Documentación interactiva (Swagger)** | `GET /api/docs` |
+
+---
+
+## 1.1 Novedades del backend v2
+
+El **front-end no cambia** (`src/views/` y `public/` quedan idénticos). Todo lo
+nuevo es del lado del servidor y se usa por la API:
+
+| Funcionalidad | Detalle |
+|---|---|
+| **API REST JSON** `/api/v1` | Restaurantes, carta, búsqueda y filtros de platos, comentarios, carrito, pedidos |
+| **Pedidos guardados en BD** | El carrito se confirma como pedido con código de seguimiento (`K7P2QX9M`). Estados `pendiente → preparando → listo → entregado` (o `cancelado`) |
+| **Cuentas de usuario** | Registro, login, "quién soy", cambio de contraseña. Roles `cliente` y `admin` |
+| **Administración** | CRUD de restaurantes, cartas, categorías y platos (borrado lógico y restaurar), moderación de comentarios, gestión de usuarios, cocina (estado de pedidos) |
+| **Reportes** | Ventas, ticket promedio, pedidos por estado, platos más pedidos, ventas por día |
+| **Auditoría** | Tabla `auditoria`: logins (ok/fallidos), registros, pedidos, cambios del admin, con usuario, IP y fecha. La app solo puede INSERTAR en ella, no modificarla |
+| **Logs estructurados** | JSON con `pino` (listos para CloudWatch), id por petición (`X-Request-Id`), sin contraseñas ni cookies |
+| **Validación con Zod** | Todo lo que entra por la API se valida; campos desconocidos se rechazan (anti *mass assignment*) |
+| **Documentación OpenAPI** | Generada automáticamente desde las rutas y esquemas (`src/api/rutas.js`), nunca queda desactualizada |
 
 ---
 
@@ -35,12 +56,12 @@ carta-digital/
 │   ├── app.js               # Configuración de Express: helmet, sesiones, CSRF, rutas
 │   ├── config/
 │   │   ├── env.js           # Variables de entorno validadas (.env)
-│   │   └── db.js            # Pool de PostgreSQL (solo consultas parametrizadas)
+│   │   ├── db.js            # Pool de PostgreSQL + transacciones (solo consultas parametrizadas)
+│   │   └── logger.js        # Logs JSON (pino) con datos sensibles ocultos
 │   ├── models/              # M — acceso a datos
-│   │   ├── restauranteModel.js
-│   │   ├── cartaModel.js
-│   │   ├── comentarioModel.js
-│   │   └── usuarioModel.js
+│   │   ├── restauranteModel.js  cartaModel.js  comentarioModel.js
+│   │   ├── usuarioModel.js      pedidoModel.js auditoriaModel.js
+│   │   └── catalogoAdminModel.js
 │   ├── views/               # V — plantillas EJS (escapan HTML por defecto)
 │   │   ├── partials/ (head, footer, plato)
 │   │   ├── inicio.ejs  carta.ejs  carrito.ejs  error.ejs
@@ -49,13 +70,21 @@ carta-digital/
 │   │   ├── carritoController.js
 │   │   ├── comentarioController.js
 │   │   └── authController.js
-│   ├── routes/index.js      # Mapa de rutas + rate limiting
-│   ├── middlewares/         # csrf.js, auth.js, errores.js
-│   └── utils/               # validacion.js, formato.js, async.js
+│   ├── routes/index.js      # Rutas de la web (HTML)
+│   ├── api/                 # API REST v1
+│   │   ├── rutas.js         # Tabla única de endpoints (genera router + Swagger)
+│   │   ├── schemas.js       # Validación Zod de params, query y body
+│   │   ├── validar.js       # Middleware de validación
+│   │   ├── acceso.js        # requiereLogin / requiereAdmin
+│   │   ├── openapi.js       # Especificación OpenAPI 3
+│   │   └── controllers/     # publico, auth, carrito, pedido, admin
+│   ├── services/            # Lógica compartida web + API (carrito, autenticación)
+│   ├── middlewares/         # csrf.js, auth.js, errores.js, limites.js
+│   └── utils/               # validacion.js, formato.js, async.js, http.js
 ├── public/                  # CSS, JS del navegador e imágenes
-├── db/init/                 # 01_schema.sql, 02_datos.sql, 03_usuario_app.sh
-├── scripts/                 # init-db.js, crear-usuario.js
-└── tests/                   # seguridad.test.js (23 pruebas)
+├── db/init/                 # 01_schema, 02_datos, 03_usuario_app, 04_backend_v2, 05_permisos_v2
+├── scripts/                 # init-db.js, migrar-db.js, crear-usuario.js
+└── tests/                   # seguridad.test.js (23) + api.test.js (45) = 68 pruebas
 ```
 
 Flujo de una petición: **ruta → middlewares (helmet, sesión, CSRF, login) →
@@ -77,9 +106,18 @@ Crear la base (con un usuario administrador de PostgreSQL):
 
 ```bash
 createdb carta_digital
-psql -d carta_digital -f db/init/01_schema.sql -f db/init/02_datos.sql
+psql -d carta_digital -f db/init/01_schema.sql -f db/init/02_datos.sql -f db/init/04_backend_v2.sql
 # Rol de la app con privilegios mínimos (recomendado):
 APP_DB_USER=carta_app APP_DB_PASSWORD='clave_segura' POSTGRES_USER=postgres POSTGRES_DB=carta_digital sh db/init/03_usuario_app.sh
+APP_DB_USER=carta_app POSTGRES_USER=postgres POSTGRES_DB=carta_digital sh db/init/05_permisos_v2.sh
+```
+
+**¿Ya tenías la base de la versión 1 (por ejemplo en RDS)?** No hay que
+recrearla: con credenciales de administrador en el `.env` ejecuta
+
+```bash
+npm run db:migrate                     # aplica 04_backend_v2.sql (idempotente)
+APP_DB_USER=carta_app POSTGRES_USER=... POSTGRES_DB=... sh db/init/05_permisos_v2.sh
 ```
 
 > Alternativa: `npm run db:init` crea las tablas usando las credenciales del `.env`.
@@ -88,7 +126,8 @@ Crear un usuario para iniciar sesión (contraseña hasheada con bcrypt; requiere
 credenciales de BD con permiso de INSERT en `usuarios`, no las del rol `carta_app`):
 
 ```bash
-npm run crear-usuario
+npm run crear-usuario     # cliente
+npm run crear-admin       # administrador (acceso a /api/v1/admin/...)
 ```
 
 Levantar la app:
@@ -105,12 +144,18 @@ Abrir http://localhost:3000
 ## 4. Pruebas
 
 ```bash
-TEST_EMAIL=tu@correo.cl TEST_PASSWORD='tu_clave' npm test
+TEST_EMAIL=cliente@correo.cl TEST_PASSWORD='clave_cliente' \
+TEST_ADMIN_EMAIL=admin@correo.cl TEST_ADMIN_PASSWORD='clave_admin' \
+npm test
 ```
 
+**68 pruebas**: `seguridad.test.js` (web) y `api.test.js` (API: inyección SQL,
+CSRF, mass assignment, precios manipulados, control de acceso por rol, flujo de
+pedidos, moderación, auditoría, fuerza bruta...).
+
 Ejecutar contra la base de **desarrollo o QA**, nunca producción (las pruebas
-publican comentarios de prueba). Sin `TEST_EMAIL`/`TEST_PASSWORD` se omiten las
-2 pruebas que necesitan iniciar sesión.
+crean pedidos, comentarios y platos de prueba). Sin las variables `TEST_*` se
+omiten las pruebas que necesitan iniciar sesión.
 
 `npm audit` → **0 vulnerabilidades** en las dependencias.
 
@@ -138,6 +183,11 @@ publican comentarios de prueba). Sin `TEST_EMAIL`/`TEST_PASSWORD` se omiten las
 | **Librerías vulnerables** (jQuery 3.2.1, Bootstrap 4 antiguo) | Front-end sin dependencias externas (CSS y JS propios) |
 | **Cabeceras de seguridad ausentes** | `helmet`: CSP, `frame-ancestors 'none'`, `nosniff`, HSTS en producción, sin `X-Powered-By` |
 | **Sin integridad referencial** | Claves foráneas y `CHECK` en el esquema PostgreSQL |
+| **Sin control de roles** (backend v2) | Rol `admin` verificado **en la BD en cada petición**: quitar el rol o desactivar la cuenta corta el acceso al instante |
+| **Mass assignment** (backend v2) | Esquemas Zod estrictos: `{"rol":"admin"}` en el registro → 400 |
+| **IDOR en pedidos** (backend v2) | Código aleatorio de 8 caracteres (no correlativo); solo el dueño (cuenta o sesión) puede cancelar |
+| **Sin trazabilidad** (backend v2) | Tabla `auditoria` (solo INSERT para la app) + logs JSON con `X-Request-Id` |
+| **Path traversal en imágenes** (backend v2) | Solo nombres de archivo simples (`plato1.jpg`); `../../etc/passwd` → 400 |
 
 ---
 
@@ -163,3 +213,46 @@ Notas para el contenedor:
 - En producción la cookie es `Secure`: hay que servir por **HTTPS**
   (Cloudflare / Let's Encrypt).
 - La app responde correctamente a `SIGTERM` (apagado ordenado de Docker).
+- **Autoscaling / Load Balancer:** la app no guarda estado en el contenedor
+  (sesiones, carritos y pedidos están en PostgreSQL), así que se pueden levantar
+  varias instancias detrás del balanceador sin "sticky sessions". El target group
+  puede usar `GET /health` como health check.
+- **RDS:** `DB_SSL=true` para conexión cifrada. La primera vez ejecutar los
+  scripts de `db/init/` (o `npm run db:migrate` si la base ya existía).
+- Variables nuevas opcionales: `LOG_LEVEL`, `API_DOCS` (Swagger, apagado por
+  defecto en producción), `LIMITE_REGISTRO_HORA`, `LIMITE_PEDIDOS_HORA`, `LIMITE_API_5MIN`.
+
+---
+
+## 7. API REST v1
+
+Base: `/api/v1`. Documentación interactiva en **`/api/docs`** (Swagger) y
+especificación en `/api/v1/openapi.json`.
+
+Respuestas: `{ "ok": true, "datos": ..., "paginacion"?: {...} }` o
+`{ "ok": false, "error": "...", "detalles"?: [{ "campo", "mensaje" }] }`.
+
+**Autenticación:** la misma cookie de sesión de la web (`carta.sid`). Todo
+`POST/PATCH/DELETE` exige el token en la cabecera `X-CSRF-Token`
+(se obtiene con `GET /api/v1/auth/csrf`; el login y el registro devuelven uno nuevo).
+
+| Área | Endpoints |
+|---|---|
+| Autenticación | `GET /auth/csrf` · `POST /auth/registro` · `POST /auth/login` · `POST /auth/logout` · `GET /auth/yo` · `PATCH /auth/yo/password` |
+| Restaurantes | `GET /restaurantes?q=&comuna=` · `GET /restaurantes/:id` · `/carta` · `/destacados` · `/platos?q=&precioMin=&precioMax=&destacado=&orden=` · `GET /platos/buscar?q=` |
+| Comentarios | `GET /restaurantes/:id/comentarios` · `POST` (con sesión) |
+| Carrito | `GET/POST/DELETE /restaurantes/:id/carrito` · `PATCH/DELETE /restaurantes/:id/carrito/:itemId` |
+| Pedidos | `POST /restaurantes/:id/pedidos` · `GET /pedidos/:codigo` · `POST /pedidos/:codigo/cancelar` · `GET /mis-pedidos` |
+| Admin · catálogo | `GET/POST /admin/restaurantes` · `GET/PATCH/DELETE /admin/restaurantes/:id` · `POST .../restaurar` · `POST /admin/restaurantes/:id/cartas` · `PATCH/DELETE /admin/cartas/:id` · `POST /admin/cartas/:id/categorias` · `PATCH/DELETE /admin/categorias/:id` · `POST /admin/categorias/:id/items` · `PATCH/DELETE /admin/items/:id` |
+| Admin · otros | `GET/PATCH/DELETE /admin/comentarios` · `GET/PATCH /admin/usuarios` · `GET /admin/pedidos` · `GET /admin/pedidos/:id` · `PATCH /admin/pedidos/:id/estado` · `GET /admin/estadisticas` · `GET /admin/auditoria` |
+
+Ejemplo rápido con `curl`:
+
+```bash
+B=http://localhost:3000/api/v1
+TOKEN=$(curl -s -c c.txt $B/auth/csrf | node -pe "JSON.parse(require('fs').readFileSync(0)).datos.csrfToken")
+curl -s -b c.txt -H "X-CSRF-Token: $TOKEN" -H 'Content-Type: application/json' \
+     -d '{"itemId":5,"cantidad":2}' $B/restaurantes/1/carrito
+curl -s -b c.txt -H "X-CSRF-Token: $TOKEN" -H 'Content-Type: application/json' \
+     -d '{"mesa":"7"}' $B/restaurantes/1/pedidos          # → { codigo: "K7P2QX9M", total: 25000, ... }
+```

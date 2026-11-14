@@ -29,6 +29,9 @@ const config = {
     ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' } : false,
   },
   sessionSecret: requerida('SESSION_SECRET'),
+  // Documentación interactiva de la API (Swagger) en /api/docs.
+  // Por defecto desactivada en producción para no exponer el mapa de la API.
+  apiDocs: process.env.API_DOCS ? process.env.API_DOCS === 'true' : !esProduccion,
 };
 
 if (esProduccion && config.sessionSecret.length < 32) {

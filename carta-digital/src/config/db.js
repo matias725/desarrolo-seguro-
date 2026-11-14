@@ -3,6 +3,7 @@
 // parámetros ($1, $2, ...) — nunca se concatena texto del usuario en el SQL.
 const { Pool } = require('pg');
 const config = require('./env');
+const logger = require('./logger');
 
 const pool = new Pool({
   ...config.db,
@@ -12,11 +13,28 @@ const pool = new Pool({
 });
 
 pool.on('error', (err) => {
-  console.error('[db] error inesperado en el pool:', err.message);
+  logger.error({ err: err.message }, 'error inesperado en el pool de PostgreSQL');
 });
 
 function query(texto, parametros = []) {
   return pool.query(texto, parametros);
 }
 
-module.exports = { pool, query };
+// Ejecuta varias consultas como una sola unidad: si una falla, se deshacen
+// todas (ej.: un pedido nunca queda guardado sin sus productos).
+async function transaccion(fn) {
+  const cliente = await pool.connect();
+  try {
+    await cliente.query('BEGIN');
+    const resultado = await fn((texto, parametros = []) => cliente.query(texto, parametros));
+    await cliente.query('COMMIT');
+    return resultado;
+  } catch (err) {
+    await cliente.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    cliente.release();
+  }
+}
+
+module.exports = { pool, query, transaccion };

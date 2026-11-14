@@ -77,4 +77,57 @@ async function itemDisponible(itemId, restauranteId) {
   return rows[0] || null;
 }
 
-module.exports = { cartaCompleta, destacados, itemDisponible };
+// Varios ítems de una vez (para armar un pedido con una sola consulta).
+async function itemsDisponibles(itemIds, restauranteId) {
+  if (itemIds.length === 0) return [];
+  const { rows } = await query(
+    `SELECT i.id, i.nombre, i.precio
+       FROM items i
+       JOIN categorias cat ON cat.id = i.categorias_id
+       JOIN cartas c       ON c.id = cat.cartas_id
+      WHERE i.id = ANY($1::int[]) AND c.restaurantes_id = $2
+        AND i.visible AND i.eliminado IS NULL
+        AND cat.visible AND cat.eliminado IS NULL
+        AND c.visible AND c.eliminada IS NULL`,
+    [itemIds, restauranteId]
+  );
+  return rows;
+}
+
+const ORDENES = {
+  nombre: 'i.nombre ASC',
+  precio_asc: 'i.precio ASC NULLS LAST, i.nombre',
+  precio_desc: 'i.precio DESC NULLS LAST, i.nombre',
+  puntuacion: 'i.puntuacion DESC, i.nombre',
+};
+
+// Búsqueda de platos publicados. Sin restauranteId busca en todos.
+// El ORDER BY sale de una lista fija (ORDENES), nunca del texto del usuario.
+async function buscarPlatos({ restauranteId, q, precioMin, precioMax, destacado, orden = 'nombre', limite, desplazamiento }) {
+  const { rows } = await query(
+    `SELECT i.id, i.nombre, i.descripcion, i.observaciones, i.tiempo, i.puntuacion,
+            i.precio, i.foto, i.destacado,
+            cat.id AS categoria_id, cat.nombre AS categoria,
+            r.id AS restaurante_id, r.nombre AS restaurante,
+            COUNT(*) OVER()::int AS total_filas
+       FROM items i
+       JOIN categorias cat  ON cat.id = i.categorias_id
+       JOIN cartas c        ON c.id = cat.cartas_id
+       JOIN restaurantes r  ON r.id = c.restaurantes_id
+      WHERE i.visible AND i.eliminado IS NULL
+        AND cat.visible AND cat.eliminado IS NULL
+        AND c.visible AND c.eliminada IS NULL
+        AND r.eliminado IS NULL
+        AND ($1::int  IS NULL OR r.id = $1)
+        AND ($2::text IS NULL OR i.nombre ILIKE '%' || $2 || '%' OR i.descripcion ILIKE '%' || $2 || '%')
+        AND ($3::int  IS NULL OR i.precio >= $3)
+        AND ($4::int  IS NULL OR i.precio <= $4)
+        AND ($5::boolean IS NULL OR i.destacado = $5)
+      ORDER BY ${ORDENES[orden] || ORDENES.nombre}
+      LIMIT $6 OFFSET $7`,
+    [restauranteId ?? null, q ?? null, precioMin ?? null, precioMax ?? null, destacado ?? null, limite, desplazamiento]
+  );
+  return rows;
+}
+
+module.exports = { cartaCompleta, destacados, itemDisponible, itemsDisponibles, buscarPlatos, ORDENES };

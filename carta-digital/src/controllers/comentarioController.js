@@ -1,5 +1,6 @@
 const Restaurante = require('../models/restauranteModel');
 const Comentario = require('../models/comentarioModel');
+const Auditoria = require('../models/auditoriaModel');
 const { parseId, textoValido } = require('../utils/validacion');
 
 // POST /restaurantes/:id/comentarios  (requiere login + CSRF)
@@ -19,7 +20,8 @@ async function crear(req, res, next) {
     return res.redirect(`/restaurantes/${restauranteId}#comentarios`);
   }
 
-  await Comentario.crear({ comentario, usuarioId: req.session.usuario.id, restauranteId });
+  const nuevo = await Comentario.crear({ comentario, usuarioId: req.session.usuario.id, restauranteId });
+  await Auditoria.desde(req, 'comentario_crear', { entidad: 'comentarios', entidadId: nuevo.id, detalle: { restauranteId } });
   req.session.aviso = { tipo: 'ok', texto: '¡Gracias por tu comentario!' };
   res.redirect(`/restaurantes/${restauranteId}#comentarios`);
 }

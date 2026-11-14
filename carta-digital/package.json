@@ -1,6 +1,6 @@
 {
   "name": "carta-digital",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Carta digital de restaurantes (pnkSecurity reescrito en Node.js + Express + PostgreSQL con arquitectura MVC)",
   "main": "src/server.js",
   "private": true,
@@ -8,8 +8,11 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "db:init": "node scripts/init-db.js",
+    "db:migrate": "node scripts/migrar-db.js",
     "crear-usuario": "node scripts/crear-usuario.js",
-    "test": "node --test --test-concurrency=1 tests/*.test.js"
+    "crear-admin": "node scripts/crear-usuario.js --admin",
+    "test": "node --test --test-concurrency=1 tests/*.test.js",
+    "audit": "npm audit --omit=dev"
   },
   "engines": {
     "node": ">=20"
@@ -24,7 +27,11 @@
     "express-rate-limit": "^8.7.3",
     "express-session": "^1.19.0",
     "helmet": "^8.3.0",
-    "pg": "^8.23.1"
+    "pg": "^8.23.1",
+    "pino": "^10.4.0",
+    "pino-http": "^11.0.0",
+    "swagger-ui-express": "^5.0.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "supertest": "^7.3.1"
