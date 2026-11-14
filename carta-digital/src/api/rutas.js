@@ -18,7 +18,19 @@ module.exports = [
   { metodo: 'post', ruta: '/auth/login', tag: 'Autenticación', resumen: 'Iniciar sesión', descripcion: 'Máximo 5 intentos fallidos cada 15 min por IP. Devuelve un nuevo token CSRF.', body: S.login, limite: L.limiteLogin, h: auth.login },
   { metodo: 'post', ruta: '/auth/logout', tag: 'Autenticación', resumen: 'Cerrar sesión', h: auth.logout },
   { metodo: 'get', ruta: '/auth/yo', tag: 'Autenticación', resumen: 'Usuario con sesión iniciada', acceso: 'login', h: auth.yo },
-  { metodo: 'patch', ruta: '/auth/yo/password', tag: 'Autenticación', resumen: 'Cambiar mi contraseña', acceso: 'login', body: S.cambioPassword, limite: L.limiteLogin, h: auth.cambiarPassword },
+  { metodo: 'patch', ruta: '/auth/yo/password', tag: 'Autenticación', resumen: 'Cambiar mi contraseña', descripcion: 'Cierra las sesiones de otros dispositivos y avisa por correo.', acceso: 'login', body: S.cambioPassword, limite: L.limiteLogin, h: auth.cambiarPassword },
+
+  // ---------------- Seguridad de la cuenta
+  { metodo: 'post', ruta: '/auth/2fa/verificar', tag: 'Seguridad de la cuenta', resumen: 'Login paso 2: código de la app (o de respaldo)', descripcion: 'Después de POST /auth/login con requiere2fa=true. Un mismo código no sirve dos veces. 5 códigos incorrectos bloquean la cuenta.', body: S.verificar2fa, limite: L.limiteLogin, h: auth.verificar2fa },
+  { metodo: 'post', ruta: '/auth/2fa/configurar', tag: 'Seguridad de la cuenta', resumen: 'Activar 2FA (1/2): obtener el código QR', acceso: 'login', h: auth.configurar2fa },
+  { metodo: 'post', ruta: '/auth/2fa/activar', tag: 'Seguridad de la cuenta', resumen: 'Activar 2FA (2/2): confirmar con un código', descripcion: 'Devuelve 8 códigos de respaldo que se muestran UNA sola vez.', acceso: 'login', body: S.activar2fa, limite: L.limiteLogin, h: auth.activar2fa },
+  { metodo: 'post', ruta: '/auth/2fa/desactivar', tag: 'Seguridad de la cuenta', resumen: 'Desactivar 2FA (no permitido a admins)', acceso: 'login', body: S.desactivar2fa, limite: L.limiteLogin, h: auth.desactivar2fa },
+  { metodo: 'post', ruta: '/auth/2fa/respaldo', tag: 'Seguridad de la cuenta', resumen: 'Generar nuevos códigos de respaldo', acceso: 'login', body: S.verificar2fa, limite: L.limiteLogin, h: auth.regenerarRespaldo },
+  { metodo: 'post', ruta: '/auth/password/olvide', tag: 'Seguridad de la cuenta', resumen: 'Olvidé mi contraseña: enviar código por correo', descripcion: 'Responde lo mismo exista o no la cuenta. El código vence en 15 min y sirve una vez.', body: S.olvidePassword, limite: L.limiteRecuperacion, h: auth.olvidePassword },
+  { metodo: 'post', ruta: '/auth/password/restablecer', tag: 'Seguridad de la cuenta', resumen: 'Restablecer contraseña con el código del correo', descripcion: 'Si la cuenta tiene 2FA también pide codigo2fa. Cierra todas las sesiones.', body: S.restablecerPassword, limite: L.limiteRecuperacion, h: auth.restablecerPassword },
+  { metodo: 'get', ruta: '/auth/sesiones', tag: 'Seguridad de la cuenta', resumen: 'Mis sesiones abiertas (IP, navegador, inicio)', acceso: 'login', h: auth.listarSesiones },
+  { metodo: 'post', ruta: '/auth/sesiones/cerrar-todas', tag: 'Seguridad de la cuenta', resumen: 'Cerrar todas mis sesiones', descripcion: 'Por defecto mantiene la actual; con incluirActual=true cierra todas.', acceso: 'login', body: S.cerrarSesiones, h: auth.cerrarTodasSesiones },
+  { metodo: 'delete', ruta: '/auth/sesiones/:id', tag: 'Seguridad de la cuenta', resumen: 'Cerrar una sesión específica', acceso: 'login', params: P.sesion, h: auth.cerrarSesionPorId },
 
   // ---------------- Restaurantes y carta
   { metodo: 'get', ruta: '/restaurantes', tag: 'Restaurantes', resumen: 'Listar y buscar restaurantes', query: S.listarRestaurantes, h: publico.listarRestaurantes },
@@ -73,7 +85,13 @@ module.exports = [
   { metodo: 'delete', ruta: '/admin/comentarios/:id', tag: 'Admin · Moderación', resumen: 'Eliminar un comentario', acceso: 'admin', params: P.id, h: admin.eliminarComentario },
 
   { metodo: 'get', ruta: '/admin/usuarios', tag: 'Admin · Usuarios', resumen: 'Listar usuarios', acceso: 'admin', query: S.listarUsuarios, h: admin.listarUsuarios },
-  { metodo: 'patch', ruta: '/admin/usuarios/:id', tag: 'Admin · Usuarios', resumen: 'Cambiar rol o activar/desactivar', acceso: 'admin', params: P.id, body: S.editarUsuario, h: admin.editarUsuario },
+  { metodo: 'patch', ruta: '/admin/usuarios/:id', tag: 'Admin · Usuarios', resumen: 'Cambiar rol o activar/desactivar', descripcion: 'Desactivar una cuenta cierra sus sesiones al instante.', acceso: 'admin', params: P.id, body: S.editarUsuario, h: admin.editarUsuario },
+  { metodo: 'post', ruta: '/admin/usuarios/:id/desbloquear', tag: 'Admin · Usuarios', resumen: 'Quitar el bloqueo por intentos fallidos', acceso: 'admin', params: P.id, h: admin.desbloquearUsuario },
+  { metodo: 'post', ruta: '/admin/usuarios/:id/cerrar-sesiones', tag: 'Admin · Usuarios', resumen: 'Cerrar todas las sesiones de un usuario', acceso: 'admin', params: P.id, h: admin.cerrarSesionesUsuario },
+  { metodo: 'post', ruta: '/admin/usuarios/:id/2fa/reiniciar', tag: 'Admin · Usuarios', resumen: 'Reiniciar el 2FA de un usuario (perdió el teléfono)', acceso: 'admin', params: P.id, h: admin.reiniciar2faUsuario },
+
+  { metodo: 'get', ruta: '/admin/alertas', tag: 'Admin · Alertas de seguridad', resumen: 'Alertas de seguridad (pendientes primero)', descripcion: 'Tipos: cuenta_bloqueada, ataque_multiples_cuentas, fuerza_bruta_masiva, login_ip_nueva, login_ips_multiples, 2fa_fallido_repetido.', acceso: 'admin', query: S.listarAlertas, h: admin.listarAlertas },
+  { metodo: 'patch', ruta: '/admin/alertas/:id', tag: 'Admin · Alertas de seguridad', resumen: 'Marcar una alerta como revisada', acceso: 'admin', params: P.id, body: S.revisarAlerta, h: admin.revisarAlerta },
 
   { metodo: 'get', ruta: '/admin/pedidos', tag: 'Admin · Pedidos', resumen: 'Listar pedidos con filtros', acceso: 'admin', query: S.listarPedidos, h: admin.listarPedidos },
   { metodo: 'get', ruta: '/admin/pedidos/:id', tag: 'Admin · Pedidos', resumen: 'Detalle de un pedido', acceso: 'admin', params: P.id, h: admin.verPedido },

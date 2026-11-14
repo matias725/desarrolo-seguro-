@@ -17,6 +17,21 @@ async function requiereAdmin(req, res, next) {
     if (!usuario || !usuario.activo || usuario.rol !== 'admin') {
       return next(httpError(403, 'Necesitas permisos de administrador'));
     }
+    // Doble factor obligatorio para administradores.
+    if (!usuario.totp_activo) {
+      return next(
+        httpError(403, 'Los administradores deben activar la verificación en dos pasos', [
+          { campo: '2fa', mensaje: 'Configúrala con POST /api/v1/auth/2fa/configurar y POST /api/v1/auth/2fa/activar' },
+        ])
+      );
+    }
+    if (!req.session.usuario.mfa) {
+      return next(
+        httpError(403, 'Esta sesión no se inició con verificación en dos pasos', [
+          { campo: '2fa', mensaje: 'Cierra sesión e inicia de nuevo usando tu código de 6 dígitos' },
+        ])
+      );
+    }
     req.session.usuario.rol = usuario.rol;
     next();
   } catch (err) {

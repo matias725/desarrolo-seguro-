@@ -32,7 +32,26 @@ const config = {
   // Documentación interactiva de la API (Swagger) en /api/docs.
   // Por defecto desactivada en producción para no exponer el mapa de la API.
   apiDocs: process.env.API_DOCS ? process.env.API_DOCS === 'true' : !esProduccion,
+  // URL pública de la app, para los enlaces de los correos. Se configura aquí
+  // y NUNCA se arma con la cabecera Host de la petición (evita "host header
+  // injection": un atacante podría hacer que el correo apunte a su sitio).
+  appUrl: (process.env.APP_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/+$/, ''),
+  // Clave para cifrar los secretos 2FA en la BD. Si no se define se deriva de
+  // SESSION_SECRET (recomendado: una clave propia en producción).
+  cifradoClave: process.env.CIFRADO_CLAVE || null,
+  correo: {
+    // consola (desarrollo: muestra el correo en los logs) | ses (Amazon SES) | desactivado
+    proveedor: process.env.CORREO_PROVEEDOR || (esProduccion ? (process.env.CORREO_REMITENTE ? 'ses' : 'desactivado') : 'consola'),
+    remitente: process.env.CORREO_REMITENTE || 'Carta Digital <no-responder@localhost>',
+    region: process.env.AWS_REGION || 'us-east-1',
+    // Correos extra que reciben las alertas graves (además de los admins).
+    alertas: (process.env.CORREO_ALERTAS || '').split(',').map((c) => c.trim()).filter(Boolean),
+  },
 };
+
+if (!/^https?:\/\/[^\s/]+/.test(config.appUrl)) {
+  throw new Error('APP_URL debe ser una URL como https://carta.midominio.cl');
+}
 
 if (esProduccion && config.sessionSecret.length < 32) {
   throw new Error('SESSION_SECRET debe tener al menos 32 caracteres en producción');

@@ -119,7 +119,7 @@ describe('Control de acceso', () => {
 describe('Login', () => {
   test('credenciales incorrectas -> mensaje genérico', async () => {
     const { agente, csrf } = await nuevoAgente();
-    const res = await agente.post('/login').type('form').send({ _csrf: csrf, email: 'noexiste@x.cl', password: "' OR '1'='1", volver: '/restaurantes/1' });
+    const res = await agente.post('/login').type('form').send({ _csrf: csrf, email: `noexiste${Date.now()}@x.cl`, password: "' OR '1'='1", volver: '/restaurantes/1' });
     assert.strictEqual(res.status, 302);
     const pagina = await agente.get('/restaurantes/1');
     assert.match(pagina.text, /Correo o contraseña incorrectos/);
@@ -128,7 +128,7 @@ describe('Login', () => {
 
   test('no permite redirección abierta tras login', async () => {
     const { agente, csrf } = await nuevoAgente();
-    const res = await agente.post('/login').type('form').send({ _csrf: csrf, email: 'a@b.cl', password: 'x', volver: '//sitio-malicioso.com' });
+    const res = await agente.post('/login').type('form').send({ _csrf: csrf, email: `a${Date.now()}@b.cl`, password: 'x', volver: '//sitio-malicioso.com' });
     assert.strictEqual(res.headers.location, '/');
   });
 
@@ -181,7 +181,7 @@ describe('Fuerza bruta', () => {
     const { agente, csrf } = await nuevoAgente();
     let ultimo;
     for (let i = 0; i < 7; i++) {
-      ultimo = await agente.post('/login').type('form').send({ _csrf: csrf, email: 'ataque@x.cl', password: `intento${i}` });
+      ultimo = await agente.post('/login').type('form').send({ _csrf: csrf, email: `ataque${i}-${Date.now()}@x.cl`, password: `intento${i}` });
     }
     assert.strictEqual(ultimo.status, 429);
   });

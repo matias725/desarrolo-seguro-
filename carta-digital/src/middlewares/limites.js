@@ -12,12 +12,16 @@ const n = (variable, porDefecto) => Number(process.env[variable]) || porDefecto;
 const limiteLogin = rateLimit({
   ...comun,
   windowMs: 15 * 60 * 1000,
-  limit: 5,
+  limit: n('LIMITE_LOGIN_15MIN', 5),
   skipSuccessfulRequests: true,
   // Un login fallido en la web responde 302, así que el éxito se mide por si
   // quedó un usuario en la sesión, no por el código HTTP.
-  requestWasSuccessful: (req) => Boolean(req.session && req.session.usuario),
+  // Pasar la contraseña de una cuenta con 2FA también cuenta como éxito parcial.
+  requestWasSuccessful: (req) => Boolean(req.session && (req.session.usuario || req.session.pendiente2fa)),
 });
+
+// Recuperación de contraseña: 5 solicitudes por hora por IP.
+const limiteRecuperacion = rateLimit({ ...comun, windowMs: 60 * 60 * 1000, limit: n('LIMITE_RECUPERACION_HORA', 5) });
 
 // Comentarios: 10 por hora.
 const limiteComentarios = rateLimit({ ...comun, windowMs: 60 * 60 * 1000, limit: 10 });
@@ -31,4 +35,4 @@ const limitePedidos = rateLimit({ ...comun, windowMs: 60 * 60 * 1000, limit: n('
 // API en general: 300 peticiones cada 5 minutos.
 const limiteApi = rateLimit({ ...comun, windowMs: 5 * 60 * 1000, limit: n('LIMITE_API_5MIN', 300) });
 
-module.exports = { limiteLogin, limiteComentarios, limiteRegistro, limitePedidos, limiteApi };
+module.exports = { limiteLogin, limiteComentarios, limiteRegistro, limitePedidos, limiteApi, limiteRecuperacion };

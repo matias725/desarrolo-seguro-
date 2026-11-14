@@ -15,6 +15,7 @@ const MENSAJES = {
   409: 'La operación no se puede realizar en el estado actual',
   413: 'La solicitud es demasiado grande',
   415: 'Formato de solicitud no soportado',
+  423: 'Cuenta bloqueada temporalmente',
   429: 'Demasiados intentos. Espera unos minutos.',
 };
 

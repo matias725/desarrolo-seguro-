@@ -5,6 +5,10 @@ const Comentario = require('../../models/comentarioModel');
 const Usuario = require('../../models/usuarioModel');
 const Pedido = require('../../models/pedidoModel');
 const Auditoria = require('../../models/auditoriaModel');
+const Alerta = require('../../models/alertaModel');
+const Bloqueo = require('../../services/bloqueoService');
+const Sesiones = require('../../services/sesionesService');
+const Correo = require('../../services/correoService');
 const { paginado } = require('./publicoController');
 const { ok, httpError, noEncontrado, paginacion } = require('../../utils/http');
 
@@ -109,7 +113,59 @@ async function eliminarComentario(req, res) {
 async function listarUsuarios(req, res) {
   const q = req.valid.query;
   const { datos, paginacion: pag } = paginado(await Usuario.listar({ ...q, ...paginacion(q) }), q);
-  ok(res, datos, { paginacion: pag });
+  const bloqueados = await Bloqueo.bloqueadosPorEmail(datos.map((u) => u.email));
+  ok(res, datos.map((u) => ({ ...u, bloqueadoHasta: bloqueados.get(u.email) || null })), { paginacion: pag });
+}
+
+async function usuarioOError(id) {
+  const u = await Usuario.buscarPorId(id);
+  if (!u) throw noEncontrado('Usuario');
+  return u;
+}
+
+async function desbloquearUsuario(req, res) {
+  const u = await usuarioOError(req.valid.params.id);
+  await Bloqueo.limpiar(u.email);
+  await auditar(req, 'usuario_desbloquear', 'usuarios', u.id);
+  ok(res, { id: u.id, desbloqueado: true });
+}
+
+async function cerrarSesionesUsuario(req, res) {
+  const u = await usuarioOError(req.valid.params.id);
+  const cerradas = await Sesiones.cerrarTodas(u.id, u.id === req.session.usuario.id ? req.sessionID : null);
+  await auditar(req, 'usuario_cerrar_sesiones', 'usuarios', u.id, { cerradas });
+  ok(res, { id: u.id, sesionesCerradas: cerradas });
+}
+
+// Para quien perdió el teléfono y sus códigos de respaldo. Deberá configurar 2FA de nuevo.
+async function reiniciar2faUsuario(req, res) {
+  const u = await usuarioOError(req.valid.params.id);
+  if (u.id === req.session.usuario.id) throw httpError(409, 'Pídele a otro administrador que reinicie tu verificación en dos pasos');
+  if (!u.totp_activo) throw httpError(409, 'Ese usuario no tiene la verificación en dos pasos activa');
+  await Usuario.desactivarTotp(u.id);
+  const cerradas = await Sesiones.cerrarTodas(u.id);
+  await auditar(req, 'usuario_2fa_reiniciado', 'usuarios', u.id, { sesionesCerradas: cerradas });
+  Correo.enviar({
+    para: u.email,
+    asunto: 'Se reinició tu verificación en dos pasos',
+    titulo: 'Verificación en dos pasos reiniciada',
+    parrafos: [`Hola ${u.nombre}: un administrador reinició tu verificación en dos pasos y cerró tus sesiones.`, 'Configúrala de nuevo al iniciar sesión.'],
+  });
+  ok(res, { id: u.id, dosPasos: false, sesionesCerradas: cerradas });
+}
+
+// ---------------- Alertas de seguridad
+async function listarAlertas(req, res) {
+  const q = req.valid.query;
+  const { datos, paginacion: pag } = paginado(await Alerta.listar({ ...q, ...paginacion(q) }), q);
+  ok(res, datos, { paginacion: pag, pendientes: await Alerta.resumen() });
+}
+
+async function revisarAlerta(req, res) {
+  const a = await Alerta.marcarRevisada(req.valid.params.id, req.valid.body.revisada, req.session.usuario.id);
+  if (!a) throw noEncontrado('Alerta');
+  await auditar(req, 'alerta_revisada', 'alertas_seguridad', a.id, { revisada: a.revisada });
+  ok(res, a);
 }
 
 async function editarUsuario(req, res) {
@@ -122,7 +178,9 @@ async function editarUsuario(req, res) {
   }
   const u = await Usuario.actualizar(id, cambios);
   if (!u) throw noEncontrado('Usuario');
-  await auditar(req, 'usuario_editar', 'usuarios', id, cambios);
+  // Al desactivar una cuenta se cierran sus sesiones abiertas al instante.
+  const sesionesCerradas = cambios.activo === false ? await Sesiones.cerrarTodas(id) : 0;
+  await auditar(req, 'usuario_editar', 'usuarios', id, { ...cambios, sesionesCerradas });
   ok(res, u);
 }
 
@@ -187,6 +245,11 @@ module.exports = {
   eliminarComentario,
   listarUsuarios,
   editarUsuario,
+  desbloquearUsuario,
+  cerrarSesionesUsuario,
+  reiniciar2faUsuario,
+  listarAlertas,
+  revisarAlerta,
   listarPedidos,
   verPedido,
   cambiarEstadoPedido,

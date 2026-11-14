@@ -5,11 +5,12 @@
 // (usuario administrador de la BD, no el rol limitado carta_app).
 // Después, dar permisos al rol de la app:
 //   APP_DB_USER=carta_app POSTGRES_USER=... POSTGRES_DB=... sh db/init/05_permisos_v2.sh
+//   APP_DB_USER=carta_app POSTGRES_USER=... POSTGRES_DB=... sh db/init/07_permisos_seguridad.sh
 const fs = require('fs');
 const path = require('path');
 const { pool } = require('../src/config/db');
 
-const MIGRACIONES = ['04_backend_v2.sql'];
+const MIGRACIONES = ['04_backend_v2.sql', '06_seguridad.sql'];
 
 (async () => {
   try {

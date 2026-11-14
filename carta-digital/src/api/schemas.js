@@ -51,6 +51,7 @@ const paginacion = {
 // ---- Parámetros de ruta
 const params = {
   id: z.strictObject({ id }),
+  sesion: null, // se completa más abajo
   itemId: z.strictObject({ id, itemId: id }),
   codigo: z.strictObject({ codigo: z.string().regex(/^[A-Z2-9]{8}$/, 'Código inválido').meta({ example: 'K7P2QX9M' }) }),
 };
@@ -95,6 +96,24 @@ const login = z.strictObject({ email: z.string().max(255), password: z.string().
 const cambioPassword = z
   .strictObject({ passwordActual: z.string().min(1).max(128), passwordNueva: password })
   .refine((d) => d.passwordActual !== d.passwordNueva, { message: 'La nueva contraseña debe ser distinta', path: ['passwordNueva'] });
+
+// ---- Seguridad de cuenta
+const codigo2fa = z
+  .string()
+  .trim()
+  .regex(/^(\d{6}|[A-Za-z0-9]{4}-?[A-Za-z0-9]{4})$/, 'Código de 6 dígitos o código de respaldo (XXXX-XXXX)')
+  .meta({ example: '123456' });
+const verificar2fa = z.strictObject({ codigo: codigo2fa });
+const activar2fa = z.strictObject({ codigo: z.string().trim().regex(/^\d{6}$/, 'Código de 6 dígitos'), password: z.string().min(1).max(128) });
+const desactivar2fa = z.strictObject({ codigo: codigo2fa, password: z.string().min(1).max(128) });
+const olvidePassword = z.strictObject({ email });
+const restablecerPassword = z.strictObject({
+  token: z.string().regex(/^[A-Za-z0-9_-]{43}$/, 'Código de recuperación inválido'),
+  passwordNueva: password,
+  codigo2fa: codigo2fa.optional(),
+});
+const cerrarSesiones = z.strictObject({ incluirActual: z.boolean().default(false) });
+const sesionId = z.strictObject({ id: z.string().regex(/^[a-f0-9]{16}$/).meta({ example: '3f9a1c0b7d2e4a51' }) });
 
 // ---- Admin: catálogo
 const direccion = z.strictObject({
@@ -169,6 +188,14 @@ const listarPedidos = z.strictObject({
 const cambiarEstado = z.strictObject({ estado: z.enum(ESTADOS) });
 const rangoFechas = z.strictObject({ desde: fecha.optional(), hasta: fecha.optional() });
 
+const listarAlertas = z.strictObject({
+  revisada: booleanoQuery.optional(),
+  severidad: z.enum(['baja', 'media', 'alta']).optional(),
+  tipo: z.string().regex(/^[a-z0-9_]{1,40}$/).optional(),
+  ...paginacion,
+});
+const revisarAlerta = z.strictObject({ revisada: z.boolean() });
+
 const listarAuditoria = z.strictObject({
   accion: z.string().regex(/^[a-z_]{1,60}$/).optional(),
   usuario: entero(1, MAX_INT).optional(),
@@ -176,8 +203,18 @@ const listarAuditoria = z.strictObject({
   ...paginacion,
 });
 
+params.sesion = sesionId;
+
 module.exports = {
   params,
+  verificar2fa,
+  activar2fa,
+  desactivar2fa,
+  olvidePassword,
+  restablecerPassword,
+  cerrarSesiones,
+  listarAlertas,
+  revisarAlerta,
   listarRestaurantes,
   buscarPlatos,
   buscarPlatosGlobal,

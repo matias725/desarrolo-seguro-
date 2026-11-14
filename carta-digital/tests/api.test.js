@@ -1,7 +1,7 @@
 // Pruebas de la API REST v1 (funcionalidad + seguridad).
 // Requieren una BD de desarrollo/QA con los datos de ejemplo y la migración v2.
-//   TEST_EMAIL / TEST_PASSWORD               -> usuario cliente
-//   TEST_ADMIN_EMAIL / TEST_ADMIN_PASSWORD   -> usuario admin (npm run crear-admin)
+//   TEST_EMAIL / TEST_PASSWORD   -> usuario cliente
+// El administrador de prueba se crea aquí mismo y activa su 2FA (obligatorio para admins).
 // Las pruebas crean registros (pedidos, comentarios, platos): NO correr en producción.
 // Este archivo registra varias cuentas: se sube el límite de registros por IP
 // solo para este proceso de pruebas (el límite real se prueba más abajo).
@@ -12,33 +12,12 @@ const assert = require('node:assert');
 const request = require('supertest');
 const app = require('../src/app');
 const { pool } = require('../src/config/db');
+const { cliente, nuevoAdmin, activar2fa } = require('./ayudantes');
 
-const { TEST_EMAIL, TEST_PASSWORD, TEST_ADMIN_EMAIL, TEST_ADMIN_PASSWORD } = process.env;
+const { TEST_EMAIL, TEST_PASSWORD } = process.env;
 const conCliente = { skip: !TEST_EMAIL || !TEST_PASSWORD ? 'define TEST_EMAIL y TEST_PASSWORD' : false };
-const conAdmin = { skip: !TEST_ADMIN_EMAIL || !TEST_ADMIN_PASSWORD ? 'define TEST_ADMIN_EMAIL y TEST_ADMIN_PASSWORD' : false };
 
 after(() => pool.end());
-
-// Cliente de la API con su propia sesión y token CSRF.
-async function cliente() {
-  const agente = request.agent(app);
-  const res = await agente.get('/api/v1/auth/csrf');
-  const c = { agente, csrf: res.body.datos.csrfToken };
-  const enviar = (metodo) => (url, cuerpo) => {
-    const r = c.agente[metodo](url).set('X-CSRF-Token', c.csrf).set('Accept', 'application/json');
-    return cuerpo === undefined ? r : r.send(cuerpo);
-  };
-  c.post = enviar('post');
-  c.patch = enviar('patch');
-  c.delete = enviar('delete');
-  c.get = (url) => c.agente.get(url);
-  c.login = async (email, password) => {
-    const r = await c.post('/api/v1/auth/login', { email, password });
-    if (r.body.datos && r.body.datos.csrfToken) c.csrf = r.body.datos.csrfToken;
-    return r;
-  };
-  return c;
-}
 
 describe('API pública', () => {
   test('índice de la API', async () => {
@@ -280,7 +259,7 @@ describe('API: autenticación', () => {
 
   test('login incorrecto -> 401 genérico', async () => {
     const c = await cliente();
-    const res = await c.login('noexiste@x.cl', "' OR '1'='1");
+    const res = await c.login(`noexiste${Date.now()}@x.cl`, "' OR '1'='1");
     assert.strictEqual(res.status, 401);
     assert.strictEqual(res.body.error, 'Correo o contraseña incorrectos');
   });
@@ -307,12 +286,11 @@ describe('API: autenticación', () => {
   });
 });
 
-describe('API: administración', conAdmin, () => {
+describe('API: administración', () => {
   let admin;
   before(async () => {
     admin = await cliente();
-    const r = await admin.login(TEST_ADMIN_EMAIL, TEST_ADMIN_PASSWORD);
-    assert.strictEqual(r.status, 200);
+    await nuevoAdmin(admin);
   });
 
   test('CRUD completo: restaurante → carta → categoría → plato', async () => {
@@ -420,6 +398,11 @@ describe('API: administración', conAdmin, () => {
     c.csrf = reg.body.datos.csrfToken;
     const uid = reg.body.datos.usuario.id;
     await admin.patch(`/api/v1/admin/usuarios/${uid}`, { rol: 'admin' });
+    // Recién ascendido: sin 2FA todavía no entra al panel.
+    const sin2fa = await c.get('/api/v1/admin/estadisticas');
+    assert.strictEqual(sin2fa.status, 403);
+    assert.strictEqual(sin2fa.body.detalles[0].campo, '2fa');
+    await activar2fa(c, 'ClaveSegura12');
     assert.strictEqual((await c.get('/api/v1/admin/estadisticas')).status, 200);
     await admin.patch(`/api/v1/admin/usuarios/${uid}`, { rol: 'cliente' });
     assert.strictEqual((await c.get('/api/v1/admin/estadisticas')).status, 403);
@@ -443,7 +426,7 @@ describe('API: límites', () => {
   test('el login por API comparte el límite anti fuerza bruta', async () => {
     const c = await cliente();
     let ultimo;
-    for (let i = 0; i < 6; i++) ultimo = await c.login('ataque-api@x.cl', `intento${i}`);
+    for (let i = 0; i < 6; i++) ultimo = await c.login(`ataque-api${i}-${Date.now()}@x.cl`, `intento${i}`);
     assert.strictEqual(ultimo.status, 429);
   });
 });
