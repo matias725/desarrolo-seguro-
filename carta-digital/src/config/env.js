@@ -40,8 +40,12 @@ const config = {
   // SESSION_SECRET (recomendado: una clave propia en producción).
   cifradoClave: process.env.CIFRADO_CLAVE || null,
   correo: {
-    // consola (desarrollo: muestra el correo en los logs) | ses (Amazon SES) | desactivado
-    proveedor: process.env.CORREO_PROVEEDOR || (esProduccion ? (process.env.CORREO_REMITENTE ? 'ses' : 'desactivado') : 'consola'),
+    // consola (desarrollo: muestra el correo en los logs) | ses (Amazon SES) |
+    // resend (API de Resend; se usa cuando el laboratorio bloquea SES) | desactivado
+    proveedor:
+      process.env.CORREO_PROVEEDOR ||
+      (process.env.RESEND_API_KEY ? 'resend' : esProduccion ? (process.env.CORREO_REMITENTE ? 'ses' : 'desactivado') : 'consola'),
+    resendApiKey: process.env.RESEND_API_KEY || null,
     remitente: process.env.CORREO_REMITENTE || 'Carta Digital <no-responder@localhost>',
     region: process.env.AWS_REGION || 'us-east-1',
     // Correos extra que reciben las alertas graves (además de los admins).

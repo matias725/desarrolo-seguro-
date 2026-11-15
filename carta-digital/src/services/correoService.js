@@ -1,5 +1,7 @@
 // Envío de correos.
 //  - ses:         Amazon SES (en AWS usa el rol IAM de la instancia: sin claves en el código).
+//  - resend:      API HTTPS de Resend (la clave llega por RESEND_API_KEY, desde
+//                 SSM Parameter Store; nunca está en el repositorio).
 //  - consola:     desarrollo/QA; el correo se escribe en los logs y queda en `buzon`.
 //  - desactivado: no envía nada (solo un aviso en los logs).
 // Los correos se mandan en segundo plano: la respuesta HTTP no espera a SES,
@@ -16,12 +18,19 @@ function limpiar(texto) {
 
 const escapar = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
+// Solo se convierten en enlace las URLs de la propia app (APP_URL): un texto
+// escrito por un usuario nunca puede volverse un enlace a otro sitio.
+function enlazar(html) {
+  const base = escapar(config.appUrl).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return html.replace(new RegExp(`${base}/[\\w\\-/#=.]*`, 'g'), (url) => `<a href="${url}" style="color:#b5452c">${url}</a>`);
+}
+
 function plantillaHtml(titulo, parrafos) {
   return `<!doctype html><html lang="es"><body style="margin:0;background:#f6f1ea;font-family:Arial,sans-serif;color:#2b2420">
 <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 12px">
 <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;padding:28px">
 <tr><td><h1 style="margin:0 0 16px;font-size:20px;color:#b5452c">${escapar(titulo)}</h1>
-${parrafos.map((p) => `<p style="margin:0 0 12px;line-height:1.5">${escapar(p)}</p>`).join('')}
+${parrafos.map((p) => `<p style="margin:0 0 12px;line-height:1.5">${enlazar(escapar(p))}</p>`).join('')}
 <p style="margin:20px 0 0;font-size:12px;color:#8a7f78">Carta Digital · Este es un mensaje automático, no respondas a este correo.</p>
 </td></tr></table></td></tr></table></body></html>`;
 }
@@ -36,6 +45,21 @@ async function enviarAhora({ para, asunto, titulo, parrafos }) {
     if (buzon.length > 50) buzon.shift();
     // En consola se muestra el cuerpo solo fuera de producción (puede llevar tokens).
     logger.info({ correo: { para, asunto, ...(config.esProduccion ? {} : { texto }) } }, 'correo (modo consola)');
+    return;
+  }
+  if (config.correo.proveedor === 'resend') {
+    const resp = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${config.correo.resendApiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: config.correo.remitente, to: [para], subject: asunto, text: texto, html }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!resp.ok) {
+      // Se registra el código y el mensaje de Resend, nunca la clave.
+      const detalle = await resp.text().catch(() => '');
+      throw new Error(`Resend respondió ${resp.status}: ${detalle.slice(0, 200)}`);
+    }
+    logger.info({ para, asunto }, 'correo enviado por Resend');
     return;
   }
   if (config.correo.proveedor !== 'ses') {
