@@ -6,10 +6,10 @@
   <meta name="csrf-token" content="<%= csrfToken %>">
   <title><%= titulo %></title>
   <link rel="icon" href="/img/Fevicon.png" type="image/png">
-  <link rel="stylesheet" href="/css/estilos.css">
-  <script src="/js/app.js" defer></script>
+  <link rel="stylesheet" href="/css/estilos.css?v=<%= v %>">
+  <script src="/js/app.js?v=<%= v %>" defer></script>
   <% (typeof scripts !== 'undefined' ? scripts : []).forEach(function (s) { %>
-  <script src="/js/<%= s %>.js" defer></script>
+  <script src="/js/<%= s %>.js?v=<%= v %>" defer></script>
   <% }) %>
 </head>
 <body>

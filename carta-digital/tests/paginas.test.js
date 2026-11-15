@@ -57,7 +57,7 @@ describe('Páginas de cuenta', () => {
       assert.strictEqual(r.status, 200, ruta);
       const scripts = r.text.match(/<script\b[^>]*>/g) || [];
       assert.ok(scripts.length > 0);
-      assert.ok(scripts.every((s) => /\ssrc="\/js\/[a-z]+\.js"/.test(s)), `${ruta}: ${scripts.join(' ')}`);
+      assert.ok(scripts.every((s) => /\ssrc="\/js\/[a-z]+\.js\?v=[a-f0-9]{10}"/.test(s)), `${ruta}: ${scripts.join(' ')}`);
       assert.doesNotMatch(r.text, /\son[a-z]+="/i, `${ruta}: atributos on*= inline`);
     }
   });
@@ -105,7 +105,7 @@ describe('Panel de administración (página)', () => {
     const r2 = await pagina(con, '/admin');
     assert.strictEqual(r2.status, 200);
     assert.match(r2.text, /id="admin-tabs"/);
-    assert.match(r2.text, /src="\/js\/admin\.js"/);
+    assert.match(r2.text, /src="\/js\/admin\.js\?v=/);
   });
 
   test('si le quitan el rol, pierde el panel al instante (se lee de la BD)', async () => {

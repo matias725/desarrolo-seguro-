@@ -102,8 +102,26 @@ app.use(
   })
 );
 
+// ---- Versión de los archivos estáticos (hash de su contenido). Se agrega a
+// las URLs de CSS/JS (?v=...) para que cada despliegue invalide la caché del
+// navegador y de Cloudflare aunque se guarden por 7 días.
+const versionEstaticos = (() => {
+  const fs = require('fs');
+  const hash = crypto.createHash('sha256');
+  const recorrer = (dir) => {
+    for (const nombre of fs.readdirSync(dir).sort()) {
+      const ruta = path.join(dir, nombre);
+      if (fs.statSync(ruta).isDirectory()) recorrer(ruta);
+      else hash.update(nombre).update(fs.readFileSync(ruta));
+    }
+  };
+  ['css', 'js'].forEach((d) => recorrer(path.join(__dirname, '..', 'public', d)));
+  return hash.digest('hex').slice(0, 10);
+})();
+
 // ---- Variables para las vistas
 app.use((req, res, next) => {
+  res.locals.v = versionEstaticos;
   Object.assign(res.locals, formato);
   res.locals.rutaActual = req.path;
   res.locals.aviso = req.session.aviso || null;

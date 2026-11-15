@@ -48,6 +48,7 @@ function manejadorErrores(err, req, res, next) {
   res.locals.usuario = res.locals.usuario || null;
   res.locals.aviso = res.locals.aviso || null;
   res.locals.rutaActual = '/';
+  res.locals.v = res.locals.v || '';
   Object.assign(res.locals, formato);
   // En las páginas web se mantienen los mensajes genéricos de siempre.
   return res.render('error', { titulo: MENSAJES[status] || mensaje, status, mensaje: MENSAJES[status] || mensaje });
