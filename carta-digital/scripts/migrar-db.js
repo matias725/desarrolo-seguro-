@@ -10,7 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const { pool } = require('../src/config/db');
 
-const MIGRACIONES = ['04_backend_v2.sql', '06_seguridad.sql'];
+const MIGRACIONES = ['04_backend_v2.sql', '06_seguridad.sql', '08_limites.sql'];
 
 (async () => {
   try {

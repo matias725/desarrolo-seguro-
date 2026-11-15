@@ -96,7 +96,7 @@ carta-digital/
 ├── db/init/                 # 01_schema, 02_datos, 03_usuario_app, 04_backend_v2, 05_permisos_v2,
 │                            # 06_seguridad, 07_permisos_seguridad
 ├── scripts/                 # init-db.js, migrar-db.js, crear-usuario.js
-└── tests/                   # seguridad (23) + api (45) + seguridad-cuentas (23) = 91 pruebas
+└── tests/                   # seguridad (23) + api (45) + seguridad-cuentas (23) + limites-pg (3) = 94 pruebas
 ```
 
 Flujo de una petición: **ruta → middlewares (helmet, sesión, CSRF, login) →
@@ -124,6 +124,16 @@ APP_DB_USER=carta_app APP_DB_PASSWORD='clave_segura' POSTGRES_USER=postgres POST
 APP_DB_USER=carta_app POSTGRES_USER=postgres POSTGRES_DB=carta_digital sh db/init/05_permisos_v2.sh
 APP_DB_USER=carta_app POSTGRES_USER=postgres POSTGRES_DB=carta_digital sh db/init/07_permisos_seguridad.sh
 ```
+
+**En AWS (RDS) usa el script único `db/desplegar.sql`**: crea el esquema si la
+base está vacía, aplica todas las migraciones (idempotentes), crea el rol de la
+app y le da los permisos mínimos. Se ejecuta en cada arranque de instancia:
+
+```bash
+psql -v ON_ERROR_STOP=1 -v app_user=carta_app -v app_pass="$APP_PASS" -f db/desplegar.sql
+```
+
+Las migraciones futuras se agregan a ese archivo: no hay que tocar la plantilla de AWS.
 
 **¿Ya tenías la base de la versión 1 (por ejemplo en RDS)?** No hay que
 recrearla: con credenciales de administrador en el `.env` ejecuta
@@ -165,7 +175,7 @@ Abrir http://localhost:3000
 NODE_ENV=test TEST_EMAIL=cliente@correo.cl TEST_PASSWORD='clave_cliente' npm test
 ```
 
-**91 pruebas**: `seguridad.test.js` (web), `api.test.js` (API: inyección SQL,
+**94 pruebas**: `seguridad.test.js` (web), `api.test.js` (API: inyección SQL,
 CSRF, mass assignment, precios manipulados, control de acceso por rol, flujo de
 pedidos, moderación, auditoría, fuerza bruta...) y `seguridad-cuentas.test.js`
 (bloqueo por cuenta desde IPs distintas, 2FA con anti-replay y códigos de
@@ -236,8 +246,9 @@ Notas para el contenedor:
   (Cloudflare / Let's Encrypt).
 - La app responde correctamente a `SIGTERM` (apagado ordenado de Docker).
 - **Autoscaling / Load Balancer:** la app no guarda estado en el contenedor
-  (sesiones, carritos y pedidos están en PostgreSQL), así que se pueden levantar
-  varias instancias detrás del balanceador sin "sticky sessions". El target group
+  (sesiones, carritos, pedidos **y los límites de peticiones** están en PostgreSQL),
+  así que se pueden levantar varias instancias detrás del balanceador sin
+  "sticky sessions" y el límite anti fuerza bruta es el mismo en todas. El target group
   puede usar `GET /health` como health check.
 - **RDS:** `DB_SSL=true` para conexión cifrada. La primera vez ejecutar los
   scripts de `db/init/` (o `npm run db:migrate` si la base ya existía).
