@@ -9,16 +9,22 @@
   <% } else { %>
     <table class="tabla-pedido">
       <thead>
-        <tr><th>Producto</th><th>Cant.</th><th class="num">Precio</th><th class="num">Subtotal</th><th><span class="oculto">Acciones</span></th></tr>
+        <tr><th>Producto</th><th>Cant.</th><th class="num">Precio</th><th class="num">Subtotal</th><th class="col-quitar"><span class="oculto">Acciones</span></th></tr>
       </thead>
       <tbody>
         <% lineas.forEach(function (l) { %>
           <tr>
             <td><%= l.nombre %></td>
-            <td><%= l.cantidad %></td>
+            <td>
+              <span class="cantidad" data-cantidad="<%= l.id %>" data-valor="<%= l.cantidad %>">
+                <button type="button" class="cantidad__btn" data-cambiar="-1" aria-label="Uno menos de <%= l.nombre %>" hidden>−</button>
+                <span class="cantidad__valor"><%= l.cantidad %></span>
+                <button type="button" class="cantidad__btn" data-cambiar="1" aria-label="Uno más de <%= l.nombre %>" hidden>+</button>
+              </span>
+            </td>
             <td class="num"><%= moneda(l.precio) %></td>
             <td class="num"><%= moneda(l.subtotal) %></td>
-            <td>
+            <td class="col-quitar">
               <form action="/restaurantes/<%= restaurante.id %>/carrito/eliminar" method="post">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <input type="hidden" name="itemId" value="<%= l.id %>">
@@ -29,7 +35,7 @@
         <% }) %>
       </tbody>
       <tfoot>
-        <tr><th colspan="3">Total</th><th class="num"><%= moneda(total) %></th><th></th></tr>
+        <tr><th colspan="3">Total</th><th class="num"><%= moneda(total) %></th><th class="col-quitar"></th></tr>
       </tfoot>
     </table>
 
@@ -37,7 +43,22 @@
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <button type="submit" class="btn btn--fantasma">Vaciar pedido</button>
     </form>
-    <p class="nota">Muestra este pedido al garzón para confirmarlo.</p>
+
+    <form class="tarjeta confirmar" id="form-confirmar" data-restaurante="<%= restaurante.id %>" autocomplete="off">
+      <h2 class="titulo-tarjeta">Confirmar pedido</h2>
+      <div class="confirmar__campos">
+        <label>Mesa <small class="ayuda">(opcional)</small>
+          <input type="text" name="mesa" maxlength="10" pattern="[A-Za-z0-9_\-]{1,10}" placeholder="Ej: 12">
+        </label>
+        <label>Nota para la cocina <small class="ayuda">(opcional)</small>
+          <textarea name="nota" rows="2" maxlength="300" placeholder="Ej: sin cebolla, bebida bien helada"></textarea>
+        </label>
+      </div>
+      <p class="confirmar__total">Total a pagar: <strong><%= moneda(total) %></strong></p>
+      <button type="submit" class="btn">Enviar pedido a la cocina</button>
+      <p class="nota">Te daremos un código para seguir tu pedido en tiempo real. <% if (!usuario) { %><a href="/ingresar?volver=/restaurantes/<%= restaurante.id %>/carrito">Inicia sesión</a> para guardarlo en tu historial.<% } %></p>
+      <noscript><p class="nota">Para enviar el pedido necesitas JavaScript; si no, muéstraselo al garzón.</p></noscript>
+    </form>
   <% } %>
 </section>
 

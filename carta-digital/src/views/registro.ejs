@@ -1,0 +1,28 @@
+<%- include('partials/head') %>
+
+<section class="contenedor bloque">
+  <div class="tarjeta tarjeta--angosta">
+    <h1 class="titulo-pagina">Crear una cuenta</h1>
+    <p class="nota">Con tu cuenta puedes comentar, ver el historial de tus pedidos y proteger tu acceso con verificación en dos pasos.</p>
+    <form class="formulario" id="form-registro" autocomplete="on">
+      <label>Nombre
+        <input type="text" name="nombre" required minlength="2" maxlength="100" autocomplete="name" autofocus>
+      </label>
+      <label>Correo
+        <input type="email" name="email" required maxlength="255" autocomplete="email">
+      </label>
+      <label>Contraseña
+        <input type="password" name="password" required minlength="10" maxlength="128" autocomplete="new-password" aria-describedby="ayuda-pass">
+        <small id="ayuda-pass" class="ayuda">Mínimo 10 caracteres, con letras y números. No uses tu correo.</small>
+      </label>
+      <label>Repite la contraseña
+        <input type="password" name="repetir" required minlength="10" maxlength="128" autocomplete="new-password">
+      </label>
+      <button type="submit" class="btn">Crear cuenta</button>
+    </form>
+    <noscript><p class="aviso-inline aviso-inline--error">Para crear una cuenta necesitas activar JavaScript.</p></noscript>
+    <p class="enlaces"><a href="/ingresar">Ya tengo cuenta</a></p>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

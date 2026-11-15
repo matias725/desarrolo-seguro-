@@ -1,0 +1,20 @@
+<%- include('partials/head') %>
+
+<section class="contenedor bloque">
+  <div class="tarjeta tarjeta--angosta">
+    <h1 class="titulo-pagina">Verificación en dos pasos</h1>
+    <p>Abre tu app de autenticación (Google Authenticator, Microsoft Authenticator o Authy) y escribe el código de 6 dígitos de <strong>Carta Digital</strong>.</p>
+    <form class="formulario" action="/verificar" method="post" autocomplete="off">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="volver" value="<%= volver %>">
+      <label>Código
+        <input class="input-codigo" type="text" name="codigo" required inputmode="numeric" autocomplete="one-time-code"
+               pattern="\d{6}|[A-Za-z0-9]{4}-?[A-Za-z0-9]{4}" maxlength="9" placeholder="123456" autofocus>
+      </label>
+      <button type="submit" class="btn">Verificar</button>
+    </form>
+    <p class="nota">¿Perdiste el teléfono? Escribe uno de tus códigos de respaldo (formato XXXX-XXXX). El código vence en 5 minutos: si pasa más tiempo, vuelve a <a href="/ingresar">iniciar sesión</a>.</p>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

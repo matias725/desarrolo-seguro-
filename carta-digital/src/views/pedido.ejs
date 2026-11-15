@@ -1,0 +1,52 @@
+<%- include('partials/head') %>
+<%
+  const pasos = ['pendiente', 'preparando', 'listo', 'entregado'];
+  const nombres = { pendiente: 'Recibido', preparando: 'En preparación', listo: 'Listo', entregado: 'Entregado', cancelado: 'Cancelado' };
+  const indice = pasos.indexOf(pedido.estado);
+%>
+<section class="contenedor bloque" id="pedido" data-codigo="<%= pedido.codigo %>" data-estado="<%= pedido.estado %>">
+  <a class="volver" href="/restaurantes/<%= pedido.restaurantes_id %>">← Volver a la carta de <%= pedido.restaurante %></a>
+  <h1 class="titulo-pagina">Pedido <span class="codigo"><%= pedido.codigo %></span></h1>
+  <p class="nota">Guarda este código: con él puedes ver tu pedido desde cualquier dispositivo. Esta página se actualiza sola.</p>
+
+  <% if (pedido.estado === 'cancelado') { %>
+    <p class="estado-grande estado-grande--cancelado">Este pedido fue cancelado.</p>
+  <% } else { %>
+    <ol class="linea-tiempo" aria-label="Estado del pedido">
+      <% pasos.forEach(function (p, i) { %>
+        <li class="linea-tiempo__paso <%= i < indice ? 'hecho' : '' %> <%= i === indice ? 'actual' : '' %>" <%= i === indice ? 'aria-current=step' : '' %>>
+          <span class="linea-tiempo__punto"><%= i < indice ? '✓' : i + 1 %></span>
+          <span><%= nombres[p] %></span>
+        </li>
+      <% }) %>
+    </ol>
+  <% } %>
+
+  <div class="grilla-pedido">
+    <table class="tabla-pedido">
+      <thead><tr><th>Producto</th><th>Cant.</th><th class="num">Precio</th><th class="num">Subtotal</th></tr></thead>
+      <tbody>
+        <% pedido.items.forEach(function (i) { %>
+          <tr><td><%= i.nombre %></td><td><%= i.cantidad %></td><td class="num"><%= moneda(i.precioUnitario) %></td><td class="num"><%= moneda(i.subtotal) %></td></tr>
+        <% }) %>
+      </tbody>
+      <tfoot><tr><th colspan="3">Total</th><th class="num"><%= moneda(pedido.total) %></th></tr></tfoot>
+    </table>
+
+    <aside class="tarjeta">
+      <dl class="datos">
+        <dt>Restaurante</dt><dd><%= pedido.restaurante %></dd>
+        <dt>Hecho el</dt><dd><%= fecha(pedido.creado) %></dd>
+        <dt>Última actualización</dt><dd id="pedido-actualizado"><%= fecha(pedido.actualizado || pedido.creado) %></dd>
+        <% if (pedido.mesa) { %><dt>Mesa</dt><dd><%= pedido.mesa %></dd><% } %>
+        <% if (pedido.nota) { %><dt>Nota</dt><dd class="texto-libre"><%= pedido.nota %></dd><% } %>
+      </dl>
+      <% if (puedeCancelar) { %>
+        <button type="button" class="btn btn--peligro btn--chico" id="cancelar-pedido">Cancelar pedido</button>
+        <p class="nota">Puedes cancelarlo mientras la cocina no lo empiece a preparar.</p>
+      <% } %>
+    </aside>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

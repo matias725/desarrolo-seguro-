@@ -1,0 +1,41 @@
+<%- include('partials/head') %>
+
+<section class="contenedor bloque">
+  <div class="tarjeta tarjeta--angosta">
+    <h1 class="titulo-pagina">Recuperar contraseña</h1>
+
+    <div id="paso-correo">
+      <p>Escribe el correo de tu cuenta. Te enviaremos un enlace para crear una contraseña nueva (vence en 15 minutos y sirve una sola vez).</p>
+      <form class="formulario" id="form-olvide" autocomplete="on">
+        <label>Correo
+          <input type="email" name="email" required maxlength="255" autocomplete="email" autofocus>
+        </label>
+        <button type="submit" class="btn">Enviar enlace</button>
+      </form>
+      <p class="enlaces"><a href="#" id="tengo-codigo">Ya tengo el código del correo</a></p>
+    </div>
+
+    <div id="paso-nueva" hidden>
+      <p>Crea tu nueva contraseña. Al guardarla se cerrarán todas tus sesiones abiertas.</p>
+      <form class="formulario" id="form-restablecer" autocomplete="off">
+        <label>Código del correo
+          <input type="text" name="token" required pattern="[A-Za-z0-9_\-]{43}" maxlength="43" spellcheck="false">
+        </label>
+        <label>Nueva contraseña
+          <input type="password" name="passwordNueva" required minlength="10" maxlength="128" autocomplete="new-password">
+          <small class="ayuda">Mínimo 10 caracteres, con letras y números.</small>
+        </label>
+        <label>Repite la contraseña
+          <input type="password" name="repetir" required minlength="10" maxlength="128" autocomplete="new-password">
+        </label>
+        <label>Código de tu app <small class="ayuda">(solo si tienes verificación en dos pasos)</small>
+          <input class="input-codigo" type="text" name="codigo2fa" inputmode="numeric" maxlength="9" placeholder="123456" autocomplete="one-time-code">
+        </label>
+        <button type="submit" class="btn">Guardar contraseña</button>
+      </form>
+    </div>
+    <noscript><p class="aviso-inline aviso-inline--error">Esta página necesita JavaScript.</p></noscript>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

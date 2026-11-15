@@ -57,6 +57,26 @@ nuevo es del lado del servidor y se usa por la API:
 
 ---
 
+## 1.3 Páginas web (frontend v2)
+
+Mismo estilo visual que la carta original, sin librerías externas y sin scripts
+inline (la CSP `script-src 'self'` sigue intacta). Las acciones usan la API
+`/api/v1`, así la web y la API comparten validación, permisos y auditoría.
+
+| Página | Qué hace |
+|---|---|
+| `/ingresar`, `/verificar` | Login y segundo paso con el código de la app (o un código de respaldo) |
+| `/registro` | Crear cuenta de cliente |
+| `/recuperar` | Pedir el enlace por correo y crear la contraseña nueva (el código va después de `#`, nunca llega a los logs) |
+| `/cuenta` | Datos, cambiar contraseña, activar 2FA con **código QR**, códigos de respaldo, sesiones abiertas |
+| `/restaurantes/:id/carrito` | Cantidades − / + y **confirmar pedido** (mesa y nota) |
+| `/pedidos/:codigo` | Seguimiento en vivo (se actualiza solo) y cancelar si sigue pendiente |
+| `/mis-pedidos` | Historial y "seguir un pedido por código" |
+| `/admin` | Panel: resumen de ventas, pedidos (avanzar estados), restaurantes y carta (CRUD), comentarios, usuarios, alertas y auditoría |
+
+`/admin` vuelve a leer el rol desde la BD en cada visita (a un cliente le responde
+404) y exige 2FA; cada acción del panel pasa otra vez por `requiereAdmin` en la API.
+
 ## 2. Arquitectura MVC
 
 ```
@@ -96,7 +116,7 @@ carta-digital/
 ├── db/init/                 # 01_schema, 02_datos, 03_usuario_app, 04_backend_v2, 05_permisos_v2,
 │                            # 06_seguridad, 07_permisos_seguridad
 ├── scripts/                 # init-db.js, migrar-db.js, crear-usuario.js
-└── tests/                   # seguridad (23) + api (45) + seguridad-cuentas (23) + limites-pg (3) = 94 pruebas
+└── tests/                   # seguridad (23) + api (45) + seguridad-cuentas (23) + paginas (9) + limites-pg (3) = 103 pruebas
 ```
 
 Flujo de una petición: **ruta → middlewares (helmet, sesión, CSRF, login) →
@@ -175,7 +195,7 @@ Abrir http://localhost:3000
 NODE_ENV=test TEST_EMAIL=cliente@correo.cl TEST_PASSWORD='clave_cliente' npm test
 ```
 
-**94 pruebas**: `seguridad.test.js` (web), `api.test.js` (API: inyección SQL,
+**103 pruebas**: `seguridad.test.js` (web), `paginas.test.js` (páginas nuevas: control de acceso, escape de datos, sin scripts inline), `api.test.js` (API: inyección SQL,
 CSRF, mass assignment, precios manipulados, control de acceso por rol, flujo de
 pedidos, moderación, auditoría, fuerza bruta...) y `seguridad-cuentas.test.js`
 (bloqueo por cuenta desde IPs distintas, 2FA con anti-replay y códigos de

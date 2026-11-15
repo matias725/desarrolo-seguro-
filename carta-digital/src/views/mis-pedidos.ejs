@@ -1,0 +1,34 @@
+<%- include('partials/head') %>
+
+<section class="contenedor bloque">
+  <div class="tarjeta__cabecera">
+    <h1 class="titulo-pagina">Mis pedidos</h1>
+    <form class="formulario formulario--fila" action="/seguimiento" method="get" role="search">
+      <label>Seguir un pedido por código
+        <input type="text" name="codigo" required maxlength="8" pattern="[A-Za-z2-9]{8}" placeholder="K7P2QX9M" class="input-codigo" spellcheck="false">
+      </label>
+      <button type="submit" class="btn btn--fantasma">Ver</button>
+    </form>
+  </div>
+
+  <% if (pedidos.length === 0) { %>
+    <p class="vacio">Todavía no has hecho pedidos con tu cuenta. Elige un <a href="/">restaurante</a>, arma tu pedido y confírmalo desde "Mi pedido".</p>
+  <% } else { %>
+    <ul class="lista-filas">
+      <% pedidos.forEach(function (p) { %>
+        <li class="fila">
+          <div>
+            <a class="fila__titulo" href="/pedidos/<%= p.codigo %>"><span class="codigo"><%= p.codigo %></span> · <%= p.restaurante %></a>
+            <div class="fila__meta"><%= fecha(p.creado) %> · <%= p.productos %> producto(s)<% if (p.mesa) { %> · mesa <%= p.mesa %><% } %></div>
+          </div>
+          <div class="fila__lado">
+            <span class="chip chip--<%= p.estado %>"><%= { pendiente: 'Pendiente', preparando: 'En preparación', listo: 'Listo', entregado: 'Entregado', cancelado: 'Cancelado' }[p.estado] %></span>
+            <strong><%= moneda(p.total) %></strong>
+          </div>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+</section>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,110 @@
+<%- include('partials/head') %>
+
+<section class="contenedor bloque" id="cuenta" data-admin="<%= cuenta.rol === 'admin' %>" data-dos-pasos="<%= cuenta.totp_activo %>">
+  <h1 class="titulo-pagina">Mi cuenta</h1>
+
+  <div class="grilla-cuenta">
+    <article class="tarjeta">
+      <h2 class="titulo-tarjeta">Mis datos</h2>
+      <dl class="datos">
+        <dt>Nombre</dt><dd><%= cuenta.nombre %></dd>
+        <dt>Correo</dt><dd><%= cuenta.email %></dd>
+        <dt>Tipo de cuenta</dt><dd><%= cuenta.rol === 'admin' ? 'Administrador' : 'Cliente' %></dd>
+        <dt>Miembro desde</dt><dd><%= fecha(cuenta.creado) %></dd>
+        <dt>Último ingreso</dt><dd><%= cuenta.ultimo_login ? fecha(cuenta.ultimo_login) : '—' %></dd>
+      </dl>
+    </article>
+
+    <article class="tarjeta">
+      <h2 class="titulo-tarjeta">Cambiar contraseña</h2>
+      <form class="formulario" id="form-password" autocomplete="off">
+        <label>Contraseña actual
+          <input type="password" name="passwordActual" required maxlength="128" autocomplete="current-password">
+        </label>
+        <label>Nueva contraseña
+          <input type="password" name="passwordNueva" required minlength="10" maxlength="128" autocomplete="new-password">
+          <small class="ayuda">Mínimo 10 caracteres, con letras y números. Se cerrarán tus sesiones en otros dispositivos.</small>
+        </label>
+        <label>Repite la nueva contraseña
+          <input type="password" name="repetir" required minlength="10" maxlength="128" autocomplete="new-password">
+        </label>
+        <button type="submit" class="btn">Guardar contraseña</button>
+      </form>
+    </article>
+
+    <article class="tarjeta" id="dos-pasos">
+      <h2 class="titulo-tarjeta">Verificación en dos pasos</h2>
+      <% if (cuenta.totp_activo) { %>
+        <p class="estado estado--ok">● Activa</p>
+        <p class="nota">Cada vez que inicies sesión te pediremos el código de 6 dígitos de tu app.</p>
+        <form class="formulario formulario--fila" id="form-respaldo" autocomplete="off">
+          <label>Código de tu app
+            <input class="input-codigo" type="text" name="codigo" required inputmode="numeric" maxlength="9" placeholder="123456" autocomplete="one-time-code">
+          </label>
+          <button type="submit" class="btn btn--fantasma">Nuevos códigos de respaldo</button>
+        </form>
+        <% if (cuenta.rol !== 'admin') { %>
+          <details class="plegable">
+            <summary>Desactivar la verificación en dos pasos</summary>
+            <form class="formulario" id="form-desactivar" autocomplete="off">
+              <label>Contraseña
+                <input type="password" name="password" required maxlength="128" autocomplete="current-password">
+              </label>
+              <label>Código de tu app
+                <input class="input-codigo" type="text" name="codigo" required inputmode="numeric" maxlength="9" placeholder="123456" autocomplete="one-time-code">
+              </label>
+              <button type="submit" class="btn btn--peligro">Desactivar</button>
+            </form>
+          </details>
+        <% } else { %>
+          <p class="nota">Como administrador, la verificación en dos pasos es obligatoria y no se puede desactivar.</p>
+        <% } %>
+      <% } else { %>
+        <p class="estado estado--alerta">● Desactivada</p>
+        <p class="nota">
+          <% if (cuenta.rol === 'admin') { %>
+            <strong>Obligatoria para administradores:</strong> actívala para poder usar el panel de admin.
+          <% } else { %>
+            Protege tu cuenta: aunque alguien sepa tu contraseña, no podrá entrar sin tu teléfono.
+          <% } %>
+        </p>
+        <button type="button" class="btn" id="btn-configurar">Activar verificación en dos pasos</button>
+        <div id="config-2fa" hidden>
+          <ol class="pasos">
+            <li>Instala Google Authenticator, Microsoft Authenticator o Authy en tu teléfono.</li>
+            <li>Escanea este código QR con la app:</li>
+          </ol>
+          <img id="qr-2fa" class="qr" alt="Código QR para tu app de autenticación" width="240" height="240">
+          <p class="nota">¿No puedes escanear? Escribe esta clave en la app: <code id="secreto-2fa" class="secreto"></code></p>
+          <form class="formulario" id="form-activar" autocomplete="off">
+            <label>Código de 6 dígitos que muestra la app
+              <input class="input-codigo" type="text" name="codigo" required inputmode="numeric" pattern="\d{6}" maxlength="6" placeholder="123456" autocomplete="one-time-code">
+            </label>
+            <label>Tu contraseña
+              <input type="password" name="password" required maxlength="128" autocomplete="current-password">
+            </label>
+            <button type="submit" class="btn">Confirmar y activar</button>
+          </form>
+        </div>
+      <% } %>
+      <div id="codigos-respaldo" class="respaldo" hidden>
+        <h3>Tus códigos de respaldo</h3>
+        <p class="nota"><strong>Guárdalos ahora</strong> (cópialos o imprímelos): no se volverán a mostrar. Cada uno sirve una sola vez si pierdes el teléfono.</p>
+        <ul id="lista-respaldo" class="lista-respaldo"></ul>
+        <button type="button" class="btn btn--fantasma btn--chico" id="copiar-respaldo">Copiar códigos</button>
+        <button type="button" class="btn btn--chico" id="listo-respaldo">Ya los guardé</button>
+      </div>
+    </article>
+
+    <article class="tarjeta tarjeta--ancha">
+      <div class="tarjeta__cabecera">
+        <h2 class="titulo-tarjeta">Sesiones abiertas</h2>
+        <button type="button" class="btn btn--fantasma btn--chico" id="cerrar-otras">Cerrar las demás sesiones</button>
+      </div>
+      <p class="nota">Dispositivos donde tu cuenta tiene la sesión iniciada. Si no reconoces alguno, ciérralo y cambia tu contraseña.</p>
+      <div id="lista-sesiones"><p class="vacio">Cargando…</p></div>
+    </article>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

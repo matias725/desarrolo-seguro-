@@ -8,6 +8,9 @@
   <link rel="icon" href="/img/Fevicon.png" type="image/png">
   <link rel="stylesheet" href="/css/estilos.css">
   <script src="/js/app.js" defer></script>
+  <% (typeof scripts !== 'undefined' ? scripts : []).forEach(function (s) { %>
+  <script src="/js/<%= s %>.js" defer></script>
+  <% }) %>
 </head>
 <body>
 <header class="barra">
@@ -18,12 +21,19 @@
     </a>
 
     <% if (usuario) { %>
-      <form class="sesion" action="/logout" method="post">
-        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <input type="hidden" name="volver" value="<%= rutaActual %>">
+      <nav class="menu" aria-label="Tu cuenta">
         <span class="sesion__hola">Hola, <strong><%= usuario.nombre %></strong></span>
-        <button type="submit" class="btn btn--fantasma">Cerrar sesión</button>
-      </form>
+        <a class="menu__link <%= rutaActual === '/mis-pedidos' ? 'menu__link--activo' : '' %>" href="/mis-pedidos">Mis pedidos</a>
+        <a class="menu__link <%= rutaActual === '/cuenta' ? 'menu__link--activo' : '' %>" href="/cuenta">Mi cuenta</a>
+        <% if (usuario.rol === 'admin') { %>
+          <a class="menu__link menu__link--admin <%= rutaActual === '/admin' ? 'menu__link--activo' : '' %>" href="/admin">Admin</a>
+        <% } %>
+        <form class="sesion" action="/logout" method="post">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <input type="hidden" name="volver" value="/">
+          <button type="submit" class="btn btn--fantasma btn--chico">Cerrar sesión</button>
+        </form>
+      </nav>
     <% } else { %>
       <details class="login">
         <summary class="btn btn--fantasma">Iniciar sesión</summary>
@@ -37,6 +47,10 @@
             <input type="password" name="password" required maxlength="128" autocomplete="current-password">
           </label>
           <button type="submit" class="btn">Ingresar</button>
+          <p class="login__links">
+            <a href="/recuperar">¿Olvidaste tu contraseña?</a>
+            <a href="/registro">Crear una cuenta</a>
+          </p>
         </form>
       </details>
     <% } %>

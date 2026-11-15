@@ -20,7 +20,7 @@ async function restauranteValido(req) {
 async function ver(req, res) {
   const restaurante = await restauranteValido(req);
   const { lineas, total } = await Carrito.detalle(req, restaurante.id);
-  res.render('carrito', { titulo: `Tu pedido — ${restaurante.nombre}`, restaurante, lineas, total });
+  res.render('carrito', { titulo: `Tu pedido — ${restaurante.nombre}`, restaurante, lineas, total, scripts: ['comun', 'pedidos'] });
 }
 
 // POST /restaurantes/:id/carrito   body: { itemId }

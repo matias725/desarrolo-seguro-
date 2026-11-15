@@ -60,7 +60,9 @@ async function solicitar(req, email) {
     parrafos: [
       `Hola ${usuario.nombre}: recibimos una solicitud para restablecer tu contraseña (IP ${req.ip}).`,
       `Tu código de recuperación (válido por ${MINUTOS_VIGENCIA} minutos y un solo uso) es: ${token}`,
-      `Úsalo en: POST ${config.appUrl}/api/v1/auth/password/restablecer  con { "token": "...", "passwordNueva": "..." }`,
+      // El token va después de "#": el navegador no lo envía al servidor,
+      // así no queda en logs ni en la cabecera Referer.
+      `Crea tu nueva contraseña aquí: ${config.appUrl}/recuperar#token=${token}`,
       'Si no lo pediste tú, ignora este correo: tu contraseña actual sigue funcionando.',
     ],
   });

@@ -12,4 +12,12 @@ function requiereLogin(req, res, next) {
   return next(err);
 }
 
-module.exports = { usuarioEnVistas, requiereLogin };
+// Páginas web que requieren cuenta: en vez de un error, lleva a /ingresar
+// y vuelve a la página después del login.
+function requiereLoginWeb(req, res, next) {
+  if (req.session.usuario) return next();
+  req.session.aviso = { tipo: 'error', texto: 'Inicia sesión para ver esta página.' };
+  return res.redirect(`/ingresar?volver=${encodeURIComponent(req.path)}`);
+}
+
+module.exports = { usuarioEnVistas, requiereLogin, requiereLoginWeb };

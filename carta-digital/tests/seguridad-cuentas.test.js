@@ -162,21 +162,41 @@ describe('Verificación en dos pasos (TOTP)', () => {
     assert.ok(alertas.body.datos.some((a) => a.usuario_id === u.id && a.severidad === 'alta'));
   });
 
-  test('formulario web: contraseña + código de 6 dígitos (sin cambiar el front)', async () => {
+  test('formulario web: paso 2 en /verificar y también contraseña + código juntos', async () => {
     const c = await cliente(ipNueva());
     const u = await nuevoUsuario(c);
     const { secreto } = await activar2fa(c, u.password);
     const ip = ipNueva();
     const agente = request.agent(app);
-    const csrf = /name="csrf-token" content="([a-f0-9]+)"/.exec((await agente.get('/restaurantes/1').set('X-Forwarded-For', ip)).text)[1];
+    const csrfDe = async (url) => /name="csrf-token" content="([a-f0-9]+)"/.exec((await agente.get(url).set('X-Forwarded-For', ip)).text)[1];
+    let csrf = await csrfDe('/restaurantes/1');
     const enviar = (password) => agente.post('/login').set('X-Forwarded-For', ip).type('form').send({ _csrf: csrf, email: u.email, password, volver: '/restaurantes/1' });
 
-    await enviar(u.password); // sin código
-    assert.match((await agente.get('/restaurantes/1').set('X-Forwarded-For', ip)).text, /seguida del código de 6 dígitos/);
+    // Solo la contraseña: lleva al paso 2 sin iniciar sesión todavía.
+    const paso1 = await enviar(u.password);
+    assert.strictEqual(paso1.status, 302);
+    assert.match(paso1.headers.location, /^\/verificar\?volver=/);
+    assert.doesNotMatch((await agente.get('/restaurantes/1').set('X-Forwarded-For', ip)).text, /Cerrar sesión/);
+    const verificar = await agente.get('/verificar?volver=/restaurantes/1').set('X-Forwarded-For', ip);
+    assert.match(verificar.text, /name="codigo"/);
+    csrf = /name="csrf-token" content="([a-f0-9]+)"/.exec(verificar.text)[1];
 
-    await enviar(u.password + codigo(secreto, 1));
-    const pagina = await agente.get('/restaurantes/1').set('X-Forwarded-For', ip);
-    assert.match(pagina.text, /Cerrar sesión/);
+    const mal = await agente.post('/verificar').set('X-Forwarded-For', ip).type('form').send({ _csrf: csrf, codigo: '000000', volver: '/restaurantes/1' });
+    assert.match(mal.headers.location, /^\/verificar/);
+    const bien = await agente.post('/verificar').set('X-Forwarded-For', ip).type('form').send({ _csrf: csrf, codigo: codigo(secreto, 1), volver: '/restaurantes/1' });
+    assert.strictEqual(bien.headers.location, '/restaurantes/1');
+    assert.match((await agente.get('/restaurantes/1').set('X-Forwarded-For', ip)).text, /Cerrar sesión/);
+
+    // Forma corta: contraseña + código en el mismo campo (otro usuario,
+    // porque un código TOTP ya usado no se acepta dos veces).
+    const c2 = await cliente(ipNueva());
+    const u2 = await nuevoUsuario(c2);
+    const { secreto: secreto2 } = await activar2fa(c2, u2.password);
+    const otro = request.agent(app);
+    const ip2 = ipNueva();
+    const csrf2 = /name="csrf-token" content="([a-f0-9]+)"/.exec((await otro.get('/').set('X-Forwarded-For', ip2)).text)[1];
+    await otro.post('/login').set('X-Forwarded-For', ip2).type('form').send({ _csrf: csrf2, email: u2.email, password: u2.password + codigo(secreto2, 1), volver: '/' });
+    assert.match((await otro.get('/').set('X-Forwarded-For', ip2)).text, /Cerrar sesión/);
   });
 
   test('administradores: 2FA obligatorio y sesión iniciada con código', async () => {

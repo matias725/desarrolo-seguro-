@@ -1,0 +1,37 @@
+<%- include('partials/head') %>
+
+<section class="contenedor bloque">
+  <h1 class="titulo-pagina">Panel de administración</h1>
+
+  <% if (falta2fa) { %>
+    <div class="tarjeta tarjeta--angosta">
+      <p class="aviso-inline aviso-inline--alerta">Para usar el panel, los administradores deben activar la verificación en dos pasos.</p>
+      <p>Es obligatoria porque una cuenta de administrador puede cambiar precios, ver pedidos y gestionar usuarios: con 2FA, aunque alguien robe tu contraseña no podrá entrar sin tu teléfono.</p>
+      <a class="btn" href="/cuenta#dos-pasos">Activarla ahora</a>
+    </div>
+  <% } else if (sesionSin2fa) { %>
+    <div class="tarjeta tarjeta--angosta">
+      <p class="aviso-inline aviso-inline--alerta">Esta sesión se inició sin el código de verificación.</p>
+      <p>Cierra sesión y vuelve a entrar: después de tu contraseña te pediremos el código de 6 dígitos de tu app.</p>
+      <form action="/logout" method="post">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="hidden" name="volver" value="/ingresar">
+        <button type="submit" class="btn">Cerrar sesión y volver a entrar</button>
+      </form>
+    </div>
+  <% } else { %>
+    <div class="admin-tabs" role="tablist" id="admin-tabs">
+      <button type="button" role="tab" class="admin-tab" data-tab="resumen" aria-selected="true">Resumen</button>
+      <button type="button" role="tab" class="admin-tab" data-tab="pedidos" aria-selected="false">Pedidos <span class="chip" id="chip-pedidos" hidden></span></button>
+      <button type="button" role="tab" class="admin-tab" data-tab="catalogo" aria-selected="false">Restaurantes y carta</button>
+      <button type="button" role="tab" class="admin-tab" data-tab="comentarios" aria-selected="false">Comentarios</button>
+      <button type="button" role="tab" class="admin-tab" data-tab="usuarios" aria-selected="false">Usuarios</button>
+      <button type="button" role="tab" class="admin-tab" data-tab="alertas" aria-selected="false">Alertas <span class="chip chip--alta" id="chip-alertas" hidden></span></button>
+      <button type="button" role="tab" class="admin-tab" data-tab="auditoria" aria-selected="false">Auditoría</button>
+    </div>
+    <div id="admin-panel" role="tabpanel" aria-live="polite"><p class="vacio">Cargando…</p></div>
+    <noscript><p class="aviso-inline aviso-inline--error">El panel de administración necesita JavaScript.</p></noscript>
+  <% } %>
+</section>
+
+<%- include('partials/footer') %>

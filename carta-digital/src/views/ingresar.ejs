@@ -1,0 +1,25 @@
+<%- include('partials/head') %>
+
+<section class="contenedor bloque">
+  <div class="tarjeta tarjeta--angosta">
+    <h1 class="titulo-pagina">Iniciar sesión</h1>
+    <form class="formulario" action="/login" method="post" autocomplete="on">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="volver" value="<%= volver %>">
+      <label>Correo
+        <input type="email" name="email" required maxlength="255" autocomplete="username" autofocus>
+      </label>
+      <label>Contraseña
+        <input type="password" name="password" required maxlength="128" autocomplete="current-password">
+      </label>
+      <button type="submit" class="btn">Ingresar</button>
+    </form>
+    <p class="nota">Si tienes la verificación en dos pasos activa, te pediremos el código de tu app en el siguiente paso.</p>
+    <p class="enlaces">
+      <a href="/recuperar">¿Olvidaste tu contraseña?</a>
+      <a href="/registro">Crear una cuenta</a>
+    </p>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

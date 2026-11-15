@@ -4,6 +4,12 @@
   <div class="contenedor">
     <h1>Elige tu restaurante</h1>
     <p>Revisa la carta, arma tu pedido y deja tu comentario.</p>
+    <form class="formulario formulario--fila seguir" action="/seguimiento" method="get" role="search">
+      <label>¿Ya hiciste un pedido? Síguelo con tu código
+        <input type="text" name="codigo" required maxlength="8" pattern="[A-Za-z2-9]{8}" placeholder="K7P2QX9M" class="input-codigo" spellcheck="false">
+      </label>
+      <button type="submit" class="btn btn--fantasma">Ver pedido</button>
+    </form>
   </div>
 </section>
 
