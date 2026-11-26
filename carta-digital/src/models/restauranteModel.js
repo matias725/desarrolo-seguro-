@@ -31,11 +31,12 @@ async function buscar({ q, comuna, limite, desplazamiento }) {
        FROM restaurantes r
        JOIN direcciones d ON d.id = r.direcciones_id
       WHERE r.eliminado IS NULL
-        AND (r.nombre ILIKE '%${q || ''}%' OR d.comuna ILIKE '%${q || ''}%')
-        AND ($1::text IS NULL OR d.comuna ILIKE $1)
+        -- q viaja como parámetro ($1): PostgreSQL lo trata como dato, nunca como SQL.
+        AND ($1::text IS NULL OR r.nombre ILIKE '%' || $1 || '%' OR d.comuna ILIKE '%' || $1 || '%')
+        AND ($2::text IS NULL OR d.comuna ILIKE $2)
       ORDER BY r.nombre
-      LIMIT $2 OFFSET $3`,
-    [comuna ?? null, limite, desplazamiento]
+      LIMIT $3 OFFSET $4`,
+    [q ?? null, comuna ?? null, limite, desplazamiento]
   );
   return rows;
 }
