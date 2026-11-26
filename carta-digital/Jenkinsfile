@@ -97,11 +97,11 @@ pipeline {
               sh '''#!/bin/bash
                 set -uo pipefail
                 mkdir -p reportes
-                docker run --rm -v "$PWD:/src" -w /src semgrep/semgrep:1.187.0 \
+                docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$PWD:/src" -w /src semgrep/semgrep:1.187.0 \
                   semgrep scan --metrics=off --disable-version-check \
                     --config p/nodejs --config p/secrets --config .semgrep/reglas.yml \
                     --exclude tests --exclude node_modules --exclude public/vendor \
-                    --json --output reportes/semgrep.json --text
+                    --json-output=reportes/semgrep.json
                 node scripts/ci/umbral.js semgrep reportes/semgrep.json
               '''
             }
