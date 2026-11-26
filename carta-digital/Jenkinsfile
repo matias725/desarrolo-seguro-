@@ -96,7 +96,7 @@ pipeline {
             dir(env.APP) {
               sh '''#!/bin/bash
                 set -uo pipefail
-                mkdir -p reportes
+                mkdir -p reportes && rm -f reportes/semgrep.json
                 docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$PWD:/src" -w /src semgrep/semgrep:1.187.0 \
                   semgrep scan --metrics=off --disable-version-check \
                     --config p/nodejs --config p/secrets --config .semgrep/reglas.yml \
