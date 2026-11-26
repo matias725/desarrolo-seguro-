@@ -1,0 +1,158 @@
+// =============================================================================
+// Pipeline de Carta Digital (Programación Segura · CI3064)
+//
+//   Obtener commit -> Dependencias -> Pruebas -> Análisis (código + dependencias)
+//   -> Compilación -> Despliegue (scripts/desplegar.sh <ambiente> <commit>)
+//
+// Umbral de bloqueo (cualquiera detiene el pipeline y NO se despliega):
+//   - Una prueba automatizada falla (incluye las pruebas de seguridad ASVS).
+//   - Semgrep encuentra al menos 1 hallazgo de severidad ERROR (alta): inyección
+//     SQL, eval, secretos en el código, reglas p/nodejs y p/secrets.
+//   - npm audit encuentra al menos 1 vulnerabilidad HIGH o CRITICAL (CVSS >= 7)
+//     en dependencias de producción.
+//   Los hallazgos de severidad menor se informan y quedan como evidencia, pero
+//   no bloquean: son riesgos acotados que se gestionan en el backlog.
+//
+// Sin "set -x" en los pasos con datos sensibles: los scripts empiezan con
+// "#!/bin/bash", así Jenkins no imprime los comandos (ni las contraseñas).
+// Identidad en AWS: el rol de instancia del servidor Jenkins (LabInstanceProfile).
+// =============================================================================
+pipeline {
+  agent any
+
+  options {
+    timestamps()
+    disableConcurrentBuilds()
+    buildDiscarder(logRotator(numToKeepStr: '30'))
+    timeout(time: 45, unit: 'MINUTES')
+  }
+
+  parameters {
+    choice(name: 'AMBIENTE', choices: ['qa'], description: 'Ambiente de AWS donde se publica')
+    booleanParam(name: 'DESPLEGAR', defaultValue: true, description: 'Publicar si todos los controles pasan')
+  }
+
+  environment {
+    APP = 'carta-digital'
+    AWS_DEFAULT_REGION = 'us-east-1'
+    NPM_CONFIG_UPDATE_NOTIFIER = 'false'
+  }
+
+  stages {
+    stage('Obtener commit') {
+      steps {
+        checkout scm
+        script {
+          env.COMMIT = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
+          env.COMMIT_CORTO = env.COMMIT.take(12)
+          currentBuild.description = "commit ${env.COMMIT_CORTO}"
+        }
+        sh 'git log -1 --format="Commit %H%nAutor  %an%nFecha  %ci%nMensaje %s"'
+      }
+    }
+
+    stage('Dependencias') {
+      steps {
+        dir(env.APP) {
+          // Versiones fijadas en package.json + package-lock.json (npm ci no las cambia).
+          sh 'node --version && npm --version && npm ci --no-audit --no-fund'
+        }
+      }
+    }
+
+    stage('Pruebas') {
+      steps {
+        dir(env.APP) {
+          sh '''#!/bin/bash
+            set -euo pipefail
+            mkdir -p reportes
+            umask 077
+            scripts/ci/bd-pruebas.sh iniciar "carta-ci-$BUILD_NUMBER" > .bd-ci.env
+            set -a; . ./.bd-ci.env; set +a
+            export NODE_ENV=test TEST_EMAIL=cliente.ci@correo.cl TEST_PASSWORD="$(openssl rand -hex 12)"
+            NUEVO_NOMBRE="Cliente CI" NUEVO_EMAIL="$TEST_EMAIL" NUEVO_PASSWORD="$TEST_PASSWORD" node scripts/crear-usuario.js >/dev/null
+            echo "Base de datos de pruebas lista (PostgreSQL 16 efímero, puerto $DB_PORT)"
+            node --test --test-concurrency=1 \
+              --test-reporter=spec --test-reporter-destination=stdout \
+              --test-reporter=junit --test-reporter-destination=reportes/pruebas.xml \
+              tests/*.test.js
+          '''
+        }
+      }
+      post {
+        always {
+          dir(env.APP) {
+            sh 'rm -f .bd-ci.env; scripts/ci/bd-pruebas.sh borrar "carta-ci-$BUILD_NUMBER"'
+            junit allowEmptyResults: true, testResults: 'reportes/pruebas.xml'
+          }
+        }
+      }
+    }
+
+    stage('Análisis') {
+      parallel {
+        stage('Código (Semgrep)') {
+          steps {
+            dir(env.APP) {
+              sh '''#!/bin/bash
+                set -uo pipefail
+                mkdir -p reportes
+                docker run --rm -v "$PWD:/src" -w /src semgrep/semgrep:1.187.0 \
+                  semgrep scan --metrics=off --disable-version-check \
+                    --config p/nodejs --config p/secrets --config .semgrep/reglas.yml \
+                    --exclude tests --exclude node_modules --exclude public/vendor \
+                    --json --output reportes/semgrep.json --text
+                node scripts/ci/umbral.js semgrep reportes/semgrep.json
+              '''
+            }
+          }
+        }
+        stage('Dependencias (npm audit)') {
+          steps {
+            dir(env.APP) {
+              sh '''#!/bin/bash
+                set -uo pipefail
+                mkdir -p reportes
+                npm audit --omit=dev --json > reportes/npm-audit.json || true
+                node scripts/ci/umbral.js npm-audit reportes/npm-audit.json
+              '''
+            }
+          }
+        }
+      }
+    }
+
+    stage('Compilación') {
+      steps {
+        dir(env.APP) {
+          sh 'docker build --pull -t "carta-digital:$COMMIT_CORTO" --label "commit=$COMMIT" .'
+        }
+      }
+    }
+
+    stage('Despliegue') {
+      when { expression { return params.DESPLEGAR } }
+      steps {
+        dir(env.APP) {
+          sh '''#!/bin/bash
+            set -euo pipefail
+            mkdir -p reportes
+            bash scripts/desplegar.sh "$AMBIENTE" "$COMMIT" 2>&1 | tee reportes/despliegue.log
+          '''
+        }
+      }
+    }
+  }
+
+  post {
+    always {
+      archiveArtifacts artifacts: 'carta-digital/reportes/**', allowEmptyArchive: true, fingerprint: true
+    }
+    success {
+      echo "PUBLICADO: commit ${env.COMMIT_CORTO} en ${params.AMBIENTE} -> https://carta-${params.AMBIENTE}.cartadigitalserena.app/health"
+    }
+    failure {
+      echo "BLOQUEADO: el commit ${env.COMMIT_CORTO} no se desplegó. Revisa la etapa en rojo y los reportes archivados."
+    }
+  }
+}

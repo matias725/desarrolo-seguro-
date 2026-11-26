@@ -1,0 +1,34 @@
+# Reglas propias de Carta Digital para Semgrep (etapa "Análisis" de Jenkins).
+# Severidad ERROR = bloquea la publicación (ver Jenkinsfile).
+rules:
+  - id: carta-sql-valor-interpolado
+    languages: [javascript]
+    severity: ERROR
+    message: >-
+      Valor interpolado dentro de un literal SQL ('...${x}...'). Es inyección SQL
+      (OWASP A03, ASVS 1.2.4). Usa un parámetro ($1, $2...) y pasa el valor en el
+      arreglo de parámetros de query().
+    metadata: { cwe: "CWE-89", asvs: "1.2.4" }
+    pattern-regex: (?s)\b(query|q)\(\s*`[^`]*'[^'`\n]*\$\{[^}]+\}[^'`\n]*'
+  - id: carta-sql-concatenado
+    languages: [javascript]
+    severity: ERROR
+    message: >-
+      Consulta SQL armada concatenando texto (+). Es inyección SQL (ASVS 1.2.4):
+      usa parámetros ($1, $2...).
+    metadata: { cwe: "CWE-89", asvs: "1.2.4" }
+    pattern-regex: \b(query|q)\(\s*(['"`])[^'"`]*\2\s*\+
+  - id: carta-eval
+    languages: [javascript]
+    severity: ERROR
+    message: Uso de eval / new Function con datos dinámicos (CWE-95).
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+    paths: { include: [src/] }
+  - id: carta-secreto-en-codigo
+    languages: [javascript]
+    severity: ERROR
+    message: Posible credencial escrita en el código. Usa variables de entorno / SSM.
+    pattern-regex: (?i)(password|secret|api_?key|token)\s*[:=]\s*['"][A-Za-z0-9_\-/+=]{12,}['"]
+    paths: { include: [src/] }

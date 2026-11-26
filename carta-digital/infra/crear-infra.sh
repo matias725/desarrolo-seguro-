@@ -33,7 +33,7 @@ TIPO_DB="${TIPO_DB:-db.t3.micro}"
 P="carta-${AMB}"                       # prefijo de nombres
 DIR="$(cd "$(dirname "$0")" && pwd)"
 
-log() { printf '[infra %s] %s\n' "$(date +%H:%M:%S)" "$*"; }
+log() { printf '[infra %s] %s\n' "$(date +%H:%M:%S)" "$*" >&2; }
 etiquetas() { echo "Key=Proyecto,Value=carta-digital Key=Ambiente,Value=$AMB"; }
 
 # --------------------------------------------------------------------- red
