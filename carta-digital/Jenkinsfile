@@ -69,7 +69,7 @@ pipeline {
             umask 077
             scripts/ci/bd-pruebas.sh iniciar "carta-ci-$BUILD_NUMBER" > .bd-ci.env
             set -a; . ./.bd-ci.env; set +a
-            export NODE_ENV=test TEST_EMAIL=cliente.ci@correo.cl TEST_PASSWORD="$(openssl rand -hex 12)"
+            export NODE_ENV=test SESSION_SECRET="$(openssl rand -hex 32)" TEST_EMAIL=cliente.ci@correo.cl TEST_PASSWORD="$(openssl rand -hex 12)"
             NUEVO_NOMBRE="Cliente CI" NUEVO_EMAIL="$TEST_EMAIL" NUEVO_PASSWORD="$TEST_PASSWORD" node scripts/crear-usuario.js >/dev/null
             echo "Base de datos de pruebas lista (PostgreSQL 16 efímero, puerto $DB_PORT)"
             node --test --test-concurrency=1 \
