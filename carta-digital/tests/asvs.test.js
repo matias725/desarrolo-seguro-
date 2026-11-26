@@ -71,6 +71,16 @@ describe('ASVS 1.2.4 · Consultas parametrizadas', () => {
     assert.ok(lista.body.datos.some((x) => x.comentario === texto), 'el texto se guardó sin alterar');
   });
 
+  test("buscar restaurantes con apóstrofo (O'Higgins) responde 200 y no altera la consulta", async () => {
+    const c = await cliente(ip());
+    const legitimo = await c.get(`/api/v1/restaurantes?q=${encodeURIComponent("O'Higgins")}`);
+    assert.strictEqual(legitimo.status, 200, 'un apóstrofo legítimo no rompe la consulta');
+    const todos = await c.get('/api/v1/restaurantes?porPagina=50');
+    const inyeccion = await c.get(`/api/v1/restaurantes?q=${encodeURIComponent("' OR '1'='1")}&porPagina=50`);
+    assert.strictEqual(inyeccion.status, 200);
+    assert.ok(inyeccion.body.datos.length < todos.body.datos.length, 'la inyección no devuelve todos los restaurantes');
+  });
+
   test("buscar con apóstrofo funciona y una inyección no cambia la consulta", async () => {
     const c = await cliente(ip());
     const legitimo = await c.get(`/api/v1/platos/buscar?q=${encodeURIComponent("d'agua")}`);

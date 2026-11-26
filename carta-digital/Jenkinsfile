@@ -1,8 +1,8 @@
 // =============================================================================
 // Pipeline de Carta Digital (Programación Segura · CI3064)
 //
-//   Obtener commit -> Dependencias -> Pruebas -> Análisis (código + dependencias)
-//   -> Compilación -> Despliegue (scripts/desplegar.sh <ambiente> <commit>)
+//   Obtener commit -> Dependencias -> Verificación de seguridad en paralelo
+//   [Pruebas | Código (Semgrep) | Dependencias (npm audit)] -> Compilación -> Despliegue (scripts/desplegar.sh <ambiente> <commit>)
 //
 // Umbral de bloqueo (cualquiera detiene el pipeline y NO se despliega):
 //   - Una prueba automatizada falla (incluye las pruebas de seguridad ASVS).
@@ -60,37 +60,40 @@ pipeline {
       }
     }
 
-    stage('Pruebas') {
-      steps {
-        dir(env.APP) {
-          sh '''#!/bin/bash
-            set -euo pipefail
-            mkdir -p reportes
-            umask 077
-            scripts/ci/bd-pruebas.sh iniciar "carta-ci-$BUILD_NUMBER" > .bd-ci.env
-            set -a; . ./.bd-ci.env; set +a
-            export NODE_ENV=test SESSION_SECRET="$(openssl rand -hex 32)" TEST_EMAIL=cliente.ci@correo.cl TEST_PASSWORD="$(openssl rand -hex 12)"
-            NUEVO_NOMBRE="Cliente CI" NUEVO_EMAIL="$TEST_EMAIL" NUEVO_PASSWORD="$TEST_PASSWORD" node scripts/crear-usuario.js >/dev/null
-            echo "Base de datos de pruebas lista (PostgreSQL 16 efímero, puerto $DB_PORT)"
-            node --test --test-concurrency=1 \
-              --test-reporter=spec --test-reporter-destination=stdout \
-              --test-reporter=junit --test-reporter-destination=reportes/pruebas.xml \
-              tests/*.test.js
-          '''
-        }
-      }
-      post {
-        always {
-          dir(env.APP) {
-            sh 'rm -f .bd-ci.env; scripts/ci/bd-pruebas.sh borrar "carta-ci-$BUILD_NUMBER"'
-            junit allowEmptyResults: true, testResults: 'reportes/pruebas.xml'
+    // Los tres controles corren en paralelo y se informan todos (failFast: false):
+    // así la evidencia muestra cada control que falló. Si alguno falla, el
+    // pipeline se detiene antes de Compilación y Despliegue.
+    stage('Verificación de seguridad') {
+      failFast false
+      parallel {
+        stage('Pruebas') {
+          steps {
+            dir(env.APP) {
+              sh '''#!/bin/bash
+                set -euo pipefail
+                mkdir -p reportes
+                umask 077
+                scripts/ci/bd-pruebas.sh iniciar "carta-ci-$BUILD_NUMBER" > .bd-ci.env
+                set -a; . ./.bd-ci.env; set +a
+                export NODE_ENV=test SESSION_SECRET="$(openssl rand -hex 32)" TEST_EMAIL=cliente.ci@correo.cl TEST_PASSWORD="$(openssl rand -hex 12)"
+                NUEVO_NOMBRE="Cliente CI" NUEVO_EMAIL="$TEST_EMAIL" NUEVO_PASSWORD="$TEST_PASSWORD" node scripts/crear-usuario.js >/dev/null
+                echo "Base de datos de pruebas lista (PostgreSQL 16 efímero, puerto $DB_PORT)"
+                node --test --test-concurrency=1 \
+                  --test-reporter=spec --test-reporter-destination=stdout \
+                  --test-reporter=junit --test-reporter-destination=reportes/pruebas.xml \
+                  tests/*.test.js
+              '''
+            }
+          }
+          post {
+            always {
+              dir(env.APP) {
+                sh 'rm -f .bd-ci.env; scripts/ci/bd-pruebas.sh borrar "carta-ci-$BUILD_NUMBER"'
+                junit allowEmptyResults: true, testResults: 'reportes/pruebas.xml'
+              }
+            }
           }
         }
-      }
-    }
-
-    stage('Análisis') {
-      parallel {
         stage('Código (Semgrep)') {
           steps {
             dir(env.APP) {
