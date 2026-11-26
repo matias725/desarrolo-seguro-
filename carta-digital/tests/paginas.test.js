@@ -162,3 +162,14 @@ describe('Pedidos en la web', () => {
     assert.strictEqual((await anonimo.get("/pedidos/1' OR '1'='1")).status, 404);
   });
 });
+
+describe('Versión publicada', () => {
+  test('/health informa versión e instancia y no se guarda en caché', async () => {
+    const r = await request(app).get('/health');
+    assert.strictEqual(r.status, 200);
+    assert.strictEqual(r.headers['cache-control'], 'no-store');
+    assert.ok(r.body.version, 'falta la versión');
+    assert.ok(r.body.instancia, 'falta la instancia');
+    assert.doesNotMatch(JSON.stringify(r.body), /password|secret|DB_/i);
+  });
+});

@@ -37,6 +37,7 @@ v1.get('/', (req, res) =>
   ok(res, {
     nombre: especificacion.info.title,
     version: especificacion.info.version,
+    commit: config.version,
     documentacion: config.apiDocs ? '/api/docs' : null,
     openapi: config.apiDocs ? '/api/v1/openapi.json' : null,
     endpoints: rutas.length,

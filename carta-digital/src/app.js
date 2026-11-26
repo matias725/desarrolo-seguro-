@@ -71,9 +71,12 @@ app.use(
 app.get('/health', async (req, res) => {
   try {
     await pool.query('SELECT 1');
-    res.json({ estado: 'ok', ambiente: config.nodeEnv });
+    // Ruta dinámica: nunca se guarda en caché (ni Cloudflare ni el navegador).
+    res.set('Cache-Control', 'no-store');
+    res.json({ estado: 'ok', ambiente: config.nodeEnv, version: config.version, instancia: config.instancia, zona: config.zona });
   } catch {
-    res.status(503).json({ estado: 'sin conexión a la base de datos' });
+    res.set('Cache-Control', 'no-store');
+    res.status(503).json({ estado: 'sin conexión a la base de datos', version: config.version });
   }
 });
 

@@ -31,6 +31,11 @@ const config = {
   sessionSecret: requerida('SESSION_SECRET'),
   // Documentación interactiva de la API (Swagger) en /api/docs.
   // Por defecto desactivada en producción para no exponer el mapa de la API.
+  // Versión publicada (commit) e instancia que atiende: los informa /health
+  // para comprobar desde el dominio qué versión llegó a cada ambiente.
+  version: process.env.APP_VERSION || 'local',
+  instancia: process.env.INSTANCIA || require('os').hostname(),
+  zona: process.env.ZONA || null,
   apiDocs: process.env.API_DOCS ? process.env.API_DOCS === 'true' : !esProduccion,
   // URL pública de la app, para los enlaces de los correos. Se configura aquí
   // y NUNCA se arma con la cabecera Host de la petición (evita "host header
